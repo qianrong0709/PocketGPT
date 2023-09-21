@@ -4,84 +4,81 @@ date: 2023/09/19
 生成分子分析
 """
 
-
 from rdkit import Chem, DataStructs
+from rdkit.DataStructs import TanimotoSimilarity
 from rdkit.Chem import AllChem
-
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-
 from sklearn.manifold import TSNE
 import umap
+from sklearn.preprocessing import StandardScaler
 
-from sklearn.metrics import pairwise_distances
-import seaborn as sns
+# from sklearn.metrics import pairwise_distances
+# import seaborn as sns
+
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 
 
-# 先对生成数据进行处理,按组别获得标签
-def data_process(path):
+
+# 对生成csv文件进行处理，得到smiles和morgan指纹
+def gen_data_process(path):
     df = pd.read_csv(path)
     df = df.drop_duplicates('smiles', keep='first')
-
     grouped = df.groupby('condition', group_keys=False)
-    group_labels = {}
-    for i, (group_name, _) in enumerate(grouped):
-        group_labels[group_name] = i + 1
-    df['label'] = df['condition'].map(group_labels)
-    result = grouped.apply(lambda x: x.head(10000))
-
-    return result
-
-
-# 对对比数据进行处理,按组别获得标签
-def contrast_data_process(path):
-    df = pd.read_csv(path)
-    df = df.drop_duplicates('smiles',keep='first')
-
-    return df
-
-
-# 获得分子morgan指纹
-def morgan_finger(data):
-    data['mol'] = data['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
-    data['ecfp'] = data['mol'].apply(lambda x: AllChem.GetMorganFingerprintAsBitVect(x, 2, nBits=2048))
-    morgan = data['ecfp'].to_list()
-
+    group_df = grouped.apply(lambda x: x.head(10000))     # 每个口袋取10000个分子，12个口袋，120000个生成分子
+    group_df['mol'] = group_df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+    group_df['ecfp'] = group_df['mol'].apply(lambda x: AllChem.GetMorganFingerprintAsBitVect(x, 2, nBits=2048))
+    morgan = group_df['ecfp'].to_list()
     return morgan
 
 
-# 计算指纹的相似度
-def tanimoto(fp1, fp2):
-    tanimoto_similarity = 1 - pairwise_distances(fp1, fp2, metric='jaccard')
+# 对原始csv文件进行处理，得到smiles和morgan指纹
+def original_data_process(path):
+    df = pd.read_csv(path)
+    df = df.drop_duplicates('smiles',keep='first')
+    df['mol'] = df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
+    df['ecfp'] = df['mol'].apply(lambda x: AllChem.GetMorganFingerprintAsBitVect(x, 2, nBits=2048))
+    morgan = df['ecfp'].to_list()
+    return morgan
 
-    return tanimoto_similarity
 
 # tsne降维
-def tsne_reduce(data, n_components=2, perplexity=30, learning_rate=200.0, n_iter=1000, random_state=42):
-    tsne = TSNE(n_components=2, random_state=42)
-    embedding = tsne.fit_transform(data)
+def tsne_reduce(data):
+    embedding = TSNE(n_components=2, perplexity=30, metric='correlation', learning_rate=200.0, random_state=42).fit_transform(data)
     return embedding
+
 
 # umap降维
 def umap_reduce(data):
-    reducer = umap.UMAP(n_neighbors=15,min_dist=0.3,metric='euclidean',random_state=42)
-    embedding = reducer.fit_transform(data)
+    embedding = umap.UMAP(n_neighbors=15, min_dist=0.3, metric='jaccard', random_state=42).fit_transform(data)
     return embedding
 
 
-def get_distance_matrix(self):
-    if self.scaffold_cluster_flag:
-        fps = self.scaffolds_fps
-    else:
-        fps = self.molecules_fps
+def get_distance_matrix(fps:list):
     distance_matrix = []
-    for i, fp in enumerate(fps):
+    for i,fp in enumerate(fps):
         dist = DataStructs.BulkTanimotoSimilarity(fps[i], fps, returnDistance=1)
         distance_matrix.append(dist)
-    # logg.info(f"get_distance_matrix, {len(distance_matrix)}")
-    # logg.info(f"distance_matrix: {distance_matrix[0][0:10]}")
     return distance_matrix
+
+def main(path1, path2):
+    gen_fps = gen_data_process(path1)
+    drug_fps = original_data_process(path2)
+    gen_len = len(gen_fps)
+    drug_len = len(drug_fps)
+    all_fps = gen_fps + drug_fps
+    similarity_matrix = get_distance_matrix(all_fps)
+    print(similarity_matrix)
+
+    # embedding = umap_reduce(similarity_matrix)
+    # # embedding = tsne_reduce(all_fps)
+    #
+    # plt.scatter(embedding[:drug_len, 0], embedding[:drug_len, 1], lw=0, c='blue', label='gen space', alpha=0.85, s=50)
+    # plt.scatter(embedding[drug_len:gen_len, 0], embedding[drug_len:gen_len, 1], lw=0, c='red', label='drug space', alpha=0.85, s=2)
+    # plt.show()
+    # plt.savefig(f'{save_path}umap_{temp}.png', dpi=150)
+
 
 
 if __name__ == '__main__':
@@ -91,23 +88,35 @@ if __name__ == '__main__':
 
     # path_59 = '/home/wang/qianrong/final/data/parp1_finetune/parp1_pdb_final.csv'
     path_drug = '/home/wang/qianrong/final/data/parp1_finetune/drugbank_parp1_final.csv'
+    # path_drug = f'../data/parp1_finetune/drugbank_parp1_final.csv'
     # path_more = '/home/wang/qianrong/final/data/parp1_finetune/parp1_500_final.csv'
 
-    gen_data = data_process(gen_path_more)
-    drug_data = contrast_data_process(path_drug)
+    main(gen_path_more,path_drug)
 
-    gen_fps = morgan_finger(gen_data)
-    drug_fps = morgan_finger(drug_data)
 
-    distance_matrix = []
-    for i, fp_gen in enumerate(drug_fps):
-        # for j, fp_drug in enumerate(drug_fps):
-        dist = DataStructs.BulkTanimotoSimilarity(drug_fps[i], drug_fps, returnDistance=1)
-        print(dist)
-        distance_matrix.append(dist)
-        print(distance_matrix)
-        # tsne = TSNE(n_components=2, perplexity=30, random_state=0)
-        # embedded_clusters = tsne.fit_transform(distance_matrix)
+
+    # smiles1 = 'Cn1c(=O)c2[nH]cnc2n(C)c1=O'
+    # smiles2 = ['Cc1nc(=O)c2cccc(O)c2[nH]1','Nc1ccc2c3c(cccc13)C(=O)NC2=O']
+    #
+    # mol1 = Chem.MolFromSmiles(smiles1)
+    # mol2 = [Chem.MolFromSmiles(smiles) for smiles in smiles2]
+    #
+    # fp1 = AllChem.GetMorganFingerprintAsBitVect(mol1, 2, nBits=2048)
+    # fp2 = [AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048) for mol in mol2]
+    #
+    # fp2.append(fp1)
+    # # fps = np.array(fp2)
+    # # print(type(fps))
+    # # distance_matrix = []
+    # for i, fp in enumerate(fp2):
+    # # # similarity = TanimotoSimilarity(fp1, fp2)
+    #     print(fp2[i])
+    #     dist = DataStructs.BulkTanimotoSimilarity(fp2[i], fp2, returnDistance=1)
+    # #     # distance_matrix.append(dist)
+    #     print(dist)
+
+
+
 
 
 
