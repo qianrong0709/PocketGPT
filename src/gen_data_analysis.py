@@ -23,7 +23,7 @@ def gen_data_process(path):
     df = pd.read_csv(path)
     df = df.drop_duplicates('smiles', keep='first')
     grouped = df.groupby('condition', group_keys=False)
-    group_df = grouped.apply(lambda x: x.head(4000))     # 每个口袋取10000个分子，12个口袋，120000个生成分子
+    group_df = grouped.apply(lambda x: x.head(2000))     # 每个口袋取10000个分子，12个口袋，120000个生成分子
     group_df['mol'] = group_df['smiles'].apply(lambda x: Chem.MolFromSmiles(x))
     group_df['ecfp'] = group_df['mol'].apply(lambda x: AllChem.GetMorganFingerprintAsBitVect(x, 2, nBits=2048))
     morgan = group_df['ecfp'].to_list()
@@ -45,7 +45,7 @@ def tsne_reduce(data):
 
 # umap降维
 def umap_reduce(data):
-    embedding = umap.UMAP(n_neighbors=15, min_dist=0.3, metric='jaccard', random_state=42).fit_transform(data)
+    embedding = umap.UMAP(n_neighbors=15, min_dist=0.1, metric='jaccard', random_state=42).fit_transform(data)
     return embedding
 
 # tanimoto相似性矩阵计算
@@ -56,6 +56,7 @@ def get_distance_matrix(fps:list):
         distance_matrix.append(dist)
     return distance_matrix
 
+# 画散点图
 def save_figure(embedding, ori_len, gen_len):
     fig, ax = plt.subplots(figsize=(14, 10))
     plt.xlim([np.min(embedding[:, 0]) - 0.5, np.max(embedding[:, 0]) + 1.5])
@@ -67,64 +68,50 @@ def save_figure(embedding, ori_len, gen_len):
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
 
-    plt.scatter(embedding[:ori_len, 0], embedding[:ori_len, 1], lw=0, c='blue', label='original space', alpha=1, s=15)
-    plt.scatter(embedding[ori_len:gen_len, 0], embedding[ori_len:gen_len, 1], lw=0, c='red', label='generate space', alpha=0.85, s=3)
+    plt.scatter(embedding[:ori_len, 0], embedding[:ori_len, 1], lw=0, c='blue', label='original space', alpha=0.85, s=50)
+    plt.scatter(embedding[ori_len:gen_len, 0], embedding[ori_len:gen_len, 1], lw=0, c='red', label='generate space', alpha=0.85, s=5)
     leg = plt.legend(prop={'size': 16}, loc='upper right', markerscale=1.00)
     leg.get_frame().set_alpha(0.9)
     plt.setp(ax, xticks=[], yticks=[])
+    plt.savefig(f'umap_drug_59Gen.png', dpi=150)
     plt.show()
-    plt.savefig(f'umap_first_drug.png', dpi=300)
     return None
 
 def main(path1, path2):
-    gen_fps = gen_data_process(path1)
-    ori_fps = original_data_process(path2)
-    gen_len = len(gen_fps)
+    ori_fps = original_data_process(path1)
+    gen_fps = gen_data_process(path2)
     ori_len = len(ori_fps)
+    gen_len = len(gen_fps)
     all_fps =  ori_fps + gen_fps      # 注意顺序，先是原始分子，再是生成分子
 
     similarity_matrix = get_distance_matrix(all_fps)
     embedding = umap_reduce(similarity_matrix)
-    # embedding = tsne_reduce(all_fps)
+    # embedding = tsne_reduce(similarity_matrix)
     save_figure(embedding, ori_len,gen_len)
 
 
 if __name__ == '__main__':
-    gen_path_first = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_first_finetune.csv'
-    # gen_path_59 = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_59.csv'
-    # gen_path_more = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_more.csv'
-
     # 先不做
     # path_59 = '/home/wang/qianrong/final/data/parp1_finetune/parp1_pdb_final.csv'
 
     path_drug = '/home/wang/qianrong/final/data/parp1_finetune/drugbank_parp1_final.csv'
     # path_more = '/home/wang/qianrong/final/data/parp1_finetune/parp1_500_final.csv'
 
-    main(gen_path_first,path_drug)
-    # main(gen_path_first,path_more)
+    # 生成分子
+    # gen_path_first = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_first_finetune.csv'
+    gen_path_59 = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_59.csv'
+    # gen_path_more = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_more.csv'
 
-    # main(gen_path_59,path_drug)
-    # main(gen_path_59,path_more)
+    # main(path_drug,gen_path_first)
+    # main(path_more,gen_path_first)
 
-    # main(gen_path_more,path_drug)
-    # main(gen_path_more,path_more)
+    main(path_drug,gen_path_59)
+    # main(path_more,gen_path_59)
+
+    # main(path_drug,gen_path_more)
+    # main(path_more,gen_path_more)
 
 
-
-
-
-
-    # df1 = pd.read_csv(path_drug)
-    # df2 = pd.read_csv(path_59)
-    #
-    # df2 = df2.drop_duplicates('smiles')
-    # print(df2.shape)
-    #
-    # df1_smiles = pd.DataFrame(df1['smiles'])
-    # df2_smiles = pd.DataFrame(df2['smiles'])
-    #
-    # res = df1_smiles.merge(df2_smiles, how='inner')
-    # print(res)
 
 
 
