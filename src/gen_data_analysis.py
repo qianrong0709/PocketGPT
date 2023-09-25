@@ -1,6 +1,6 @@
 """
-author: qian rong
-date: 2023/09/19
+@author: qian rong
+@date: 2023/09/19
 生成分子分析
 """
 
@@ -73,7 +73,7 @@ def save_figure(embedding, ori_len, gen_len):
     leg = plt.legend(prop={'size': 16}, loc='upper right', markerscale=1.00)
     leg.get_frame().set_alpha(0.9)
     plt.setp(ax, xticks=[], yticks=[])
-    plt.savefig(f'umap_drug_59Gen.png', dpi=150)
+    plt.savefig(f'test1.png', dpi=150)
     plt.show()
     return None
 
@@ -94,18 +94,18 @@ if __name__ == '__main__':
     # 先不做
     # path_59 = '/home/wang/qianrong/final/data/parp1_finetune/parp1_pdb_final.csv'
 
-    path_drug = '/home/wang/qianrong/final/data/parp1_finetune/drugbank_parp1_final.csv'
-    # path_more = '/home/wang/qianrong/final/data/parp1_finetune/parp1_500_final.csv'
+    # path_drug = '/home/wang/qianrong/final/data/parp1_finetune/drugbank_parp1_final.csv'
+    path_more = '/home/wang/qianrong/final/data/parp1_finetune/parp1_500_final.csv'
 
     # 生成分子
-    # gen_path_first = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_first_finetune.csv'
-    gen_path_59 = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_59.csv'
+    gen_path_first = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_first_finetune.csv'
+    # gen_path_59 = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_59.csv'
     # gen_path_more = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_more.csv'
 
     # main(path_drug,gen_path_first)
-    # main(path_more,gen_path_first)
+    main(path_more,gen_path_first)
 
-    main(path_drug,gen_path_59)
+    # main(path_drug,gen_path_59)
     # main(path_more,gen_path_59)
 
     # main(path_drug,gen_path_more)
