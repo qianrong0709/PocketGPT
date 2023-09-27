@@ -68,12 +68,12 @@ def save_figure(embedding, ori_len, gen_len):
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
 
-    plt.scatter(embedding[:ori_len, 0], embedding[:ori_len, 1], lw=0, c='blue', label='original space', alpha=0.85, s=50)
+    plt.scatter(embedding[:ori_len, 0], embedding[:ori_len, 1], lw=0, c='blue', label='original space', alpha=0.85, s=80)
     plt.scatter(embedding[ori_len:gen_len, 0], embedding[ori_len:gen_len, 1], lw=0, c='red', label='generate space', alpha=0.85, s=5)
     leg = plt.legend(prop={'size': 16}, loc='upper right', markerscale=1.00)
     leg.get_frame().set_alpha(0.9)
     plt.setp(ax, xticks=[], yticks=[])
-    plt.savefig(f'test1.png', dpi=150)
+    plt.savefig(f'umap_59_59Gen.png', dpi=300)
     plt.show()
     return None
 
@@ -92,26 +92,27 @@ def main(path1, path2):
 
 if __name__ == '__main__':
     # 先不做
-    # path_59 = '/home/wang/qianrong/final/data/parp1_finetune/parp1_pdb_final.csv'
+    path_59 = '../data/parp1_finetune/parp1_pdb_final.csv'
 
-    # path_drug = '/home/wang/qianrong/final/data/parp1_finetune/drugbank_parp1_final.csv'
-    path_more = '/home/wang/qianrong/final/data/parp1_finetune/parp1_500_final.csv'
+    # path_drug = '../data/parp1_finetune/drugbank_parp1_final.csv'
+    # path_more = '../data/parp1_finetune/parp1_500_final.csv'
 
     # 生成分子
-    gen_path_first = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_first_finetune.csv'
-    # gen_path_59 = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_59.csv'
-    # gen_path_more = '/home/wang/qianrong/final/src/test/parp1_v1/parp1_gen_second_more.csv'
+    # gen_path_first = 'test/parp1_v1/parp1_gen_first_finetune.csv'
+    gen_path_59 = 'test/parp1_v1/parp1_gen_second_59.csv'
+    # gen_path_more = 'test/parp1_v1/parp1_gen_second_more.csv'
 
     # main(path_drug,gen_path_first)
-    main(path_more,gen_path_first)
+    # main(path_more,gen_path_first)
 
     # main(path_drug,gen_path_59)
     # main(path_more,gen_path_59)
+    main(path_59, gen_path_59)
 
     # main(path_drug,gen_path_more)
     # main(path_more,gen_path_more)
 
-
+    # pre_train = '../gua_moses_merge.csv'
 
 
 

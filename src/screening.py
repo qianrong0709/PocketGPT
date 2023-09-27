@@ -78,53 +78,97 @@ def murcko_filter(df):
     # scaffold_count = data.groupby(["scaffold_smiles"]).count()
     # scaffold = pd.DataFrame({"murcko": scaffold_count.index, "count": scaffold_count[self.smiles_field]})
     # print('scaffold-len:', len(scaffold))
+    return df
 
+def saffold():
+    scaffolds = {}
+    clusters_list = []
 
+    idx = 1
+    for mol in mol_list:
+        scaffold_smi = MurckoScaffold.MurckoScaffoldSmiles(mol=mol, includeChirality=False)
+        if scaffold_smi not in scaffolds.keys():
+            scaffolds[scaffold_smi] = idx
+            idx += 1
+
+        cluster_id = scaffolds[scaffold_smi]
+        clusters_list.append(cluster_id)
 
 
 
 if __name__ == '__main__':
-    path1 = f'test/parp1_v1/parp1_gen_first_finetune.csv'
-    path2 = f'test/parp1_v1/parp1_gen_second_59.csv'
-    path3 = f'test/parp1_v1/parp1_gen_second_more.csv'
+    # path1 = f'test/parp1_v1/parp1_gen_first_finetune.csv'
+    # path2 = f'test/parp1_v1/parp1_gen_second_59.csv'
+    # path3 = f'test/parp1_v1/parp1_gen_second_more.csv'
 
-    path_59 = '../data/parp1_finetune/parp1_pdb_final.csv'
-    path_drug = '../data/parp1_finetune/drugbank_parp1_final.csv'
-    path_more = '../data/parp1_finetune/parp1_500_final.csv'
+    # path_59 = '../data/parp1_finetune/parp1_pdb_final.csv'
+    # path_drug = '../data/parp1_finetune/drugbank_parp1_final.csv'
+    # path_more = '../data/parp1_finetune/parp1_500_final.csv'
 
-    pre_train = '../gua_moses_merge.csv'
+    # pre_train = '../gua_moses_merge.csv'
 
-    smiles1 = read_csv(path1)
-    smiles2 = read_csv(path2)
-    smiles3 = read_csv(path3)
-    gen_df = pd.concat([smiles1,smiles2,smiles3], ignore_index=True)
-    gen_df = gen_df.drop_duplicates()   # 1944524
+    ####################################################################################################
+    # 过滤生成分子
+    ####################################################################################################
 
-    ori_smiles1 = read_csv(path_59)
-    ori_smiles2  = read_csv(path_drug)
-    ori_smiles3 = read_csv(path_more)
-    ori_df = pd.concat([ori_smiles1,ori_smiles2,ori_smiles3],ignore_index=True)
-    ori_df = ori_df.drop_duplicates()   # 3338
+    # smiles1 = read_csv(path1)
+    # smiles2 = read_csv(path2)
+    # smiles3 = read_csv(path3)
+    # gen_df = pd.concat([smiles1,smiles2,smiles3], ignore_index=True)
+    # gen_df = gen_df.drop_duplicates()   # 1944524
 
-    pre_smiles = read_csv(pre_train)
-    pre_df = pre_smiles.drop_duplicates()
+    # ori_smiles1 = read_csv(path_59)
+    # ori_smiles2  = read_csv(path_drug)
+    # ori_smiles3 = read_csv(path_more)
+    # ori_df = pd.concat([ori_smiles1,ori_smiles2,ori_smiles3],ignore_index=True)
+    # ori_df = pd.DataFrame(ori_df.drop_duplicates())  # 3338
 
-    merge_df = pd.merge(gen_df,ori_df,how='inner')         # 580
-    gen_df = gen_df[~gen_df.index.isin(merge_df.index)]    # 1943944
+    # pre_smiles = read_csv(pre_train)
+    # pre_df = pre_smiles.drop_duplicates()
 
-    merge_df2 = pd.merge(gen_df,pre_df,how='inner')        # 13821
-    gen_all_df = gen_df[~gen_df.index.isin(merge_df2.index)]   # 1930703
-    # gen_all_df.to_csv('p.csv',index=False)
+    # merge_df = pd.merge(gen_df,ori_df,how='inner')         # 580
+    # gen_df = gen_df[~gen_df.index.isin(merge_df.index)]    # 1943944
+    #
+    # merge_df2 = pd.merge(gen_df,pre_df,how='inner')        # 13821
+    # gen_all_df = gen_df[~gen_df.index.isin(merge_df2.index)]   # 1930703
+    # # gen_all_df.to_csv('p.csv',index=False)
+
+    # gen_all_df['mol'] = gen_all_df.apply(lambda x: Chem.MolFromSmiles(x))
+    # mol_list = gen_all_df['mol'].tolist()
+    # res_df = scopy_filer(mol_list)
+    # res_df.to_csv('scopy_filter_v3.csv', index=False)
 
 
-    gen_all_df['mol'] = gen_all_df.apply(lambda x: Chem.MolFromSmiles(x))
-    mol_list = gen_all_df['mol'].tolist()
-    res_df = scopy_filer(mol_list)
-    res_df.to_csv('scopy_filter_v3.csv', index=False)
+    ####################################################################################################
+    # 骨架分析
+    ####################################################################################################
+
+    # target分子骨架
+    # res = murcko_filter(ori_df)   # 3338
+    # res = res.drop_duplicates('scaffold_smiles')
+    # res.to_csv('scaffold_v1.csv',index=False)   # 1577
+
+    # 过滤生成分子骨架
+    path_filter = 'scopy_filter_v3.csv'
+    # filter_smiles = pd.DataFrame(read_csv(path_filter))  # 920785
+    # filter_scaffold = murcko_filter(filter_smiles)
+    # filter_scaffold = filter_scaffold.drop_duplicates('scaffold_smiles') # 534603
+    # print(filter_scaffold)
+    # filter_scaffold.to_csv('filter_scaffold.csv',index=False)
+
+    # 过滤后的分子转换成smi文件
+    df = pd.read_csv(path_filter)
+    df_smiles = df['smiles']
+    output_file = 'output.smi'
+    with open(output_file, 'w') as smi_file:
+        for smiles in df_smiles:
+            smi_file.write(smiles + '\n')
+
+
+    # source分子骨架
 
 
 
-    # res = murcko_filter(ori_df)
 
 
 
