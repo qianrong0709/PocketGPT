@@ -1,6 +1,6 @@
 """
 @author: qian rong
-@date: 2023/06/05
+@date: 2023/11/01
 ori_model code
 """
 import re
@@ -35,21 +35,21 @@ if __name__ == '__main__':
     # path = '/home/wang/qianrong/final/gua_and_moses.csv'
     # path = '/home/wang/qianrong/final/gua_moses_admet.csv'
     # path = '/home/wang/qianrong/final/gua_moses_merge.csv'
-    # path = '/home/wang/qianrong/final/data/finetune/deeply_all_duplicate_v1.csv'
-    # path = '/home/wang/qianrong/final/data/parp1_finetune/parp1_pdb_final.csv'
-    path = '/home/wang/qianrong/final/data/parp1_finetune/parp1_500_train.csv'
+    # path = '/home/wang/qianrong/final/file/finetune/deeply_all_duplicate_v1.csv'
+    # path = '/home/wang/qianrong/final/file/parp1_finetune/parp1_pdb_final.csv'
+    path = '/home/wang/qianrong/final/file/parp1_finetune/parp1_500_train.csv'
     df = pd.read_csv(path)
     train_data, val_data = train_test_split(df, train_size=0.8, test_size=0.2, random_state=42)
 
 
 
-    # train_data = pd.read_csv('/home/wang/qianrong/final/data/finetune/deeply_train_more_v1.csv')
+    # train_data = pd.read_csv('/home/wang/qianrong/final/file/finetune/deeply_train_more_v1.csv')
     train_data = train_data.dropna(axis=0).reset_index(drop=True)
     train_data.columns = train_data.columns.str.lower()
     print(train_data)
 
 
-    # val_data = pd.read_csv('/home/wang/qianrong/final/data/finetune/deeply_valid_v3_1_merge.csv')
+    # val_data = pd.read_csv('/home/wang/qianrong/final/file/finetune/deeply_valid_v3_1_merge.csv')
     val_data = val_data.dropna(axis=0).reset_index(drop=True)
     val_data.columns = val_data.columns.str.lower()
     print(val_data)

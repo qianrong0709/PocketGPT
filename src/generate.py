@@ -5,7 +5,7 @@ from rdkit import Chem
 import math
 from tqdm import tqdm
 import argparse
-from model import GPT, GPTConfig
+from model_1 import GPT, GPTConfig
 import pandas as pd
 import torch
 import numpy as np
@@ -44,17 +44,17 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     context = "C"
-    # data = pd.read_csv('/home/wang/qianrong/final/data/parp1_finetune/parp1_pdb_final.csv')   # train 文件用来评价新颖性
-    # data = pd.read_csv('/home/wang/qianrong/final/data/finetune/deeply_all_duplicate_v1.csv')
-    data = pd.read_csv('/home/wang/qianrong/final/data/parp1_finetune/parp1_500_train.csv')
-    # data = pd.read_csv('/home/wang/qianrong/final/gua_moses_admet.csv')
+    # file = pd.read_csv('/home/wang/qianrong/final/file/parp1_finetune/parp1_pdb_final.csv')   # train 文件用来评价新颖性
+    # file = pd.read_csv('/home/wang/qianrong/final/file/finetune/deeply_all_duplicate_v1.csv')
+    data = pd.read_csv('/home/wang/qianrong/final/file/parp1_finetune/parp1_500_train.csv')
+    # file = pd.read_csv('/home/wang/qianrong/final/gua_moses_admet.csv')
 
 
     data = data.dropna(axis=0).reset_index(drop=True)
     data.columns = data.columns.str.lower()
 
 
-    data_test = pd.read_csv('/home/wang/qianrong/final/data/parp1_finetune/parp1_pdb_cluster_5.csv')   # test文件的口袋条件用来生成分子
+    data_test = pd.read_csv('/home/wang/qianrong/final/file/parp1_finetune/parp1_pdb_cluster_5.csv')   # test文件的口袋条件用来生成分子
     data_test = data_test.dropna(axis=0).reset_index(drop=True)
     data_test.columns = data_test.columns.str.lower()
 
@@ -112,7 +112,7 @@ if __name__ == '__main__':
     #     # results['object'] = s
     #     canon_smiles = [canonic_smiles(s) for s in results['smiles']]
     #     unique_smiles = list(set(canon_smiles))
-    #     novel_ratio = check_novelty(unique_smiles, set(data['smiles']))
+    #     novel_ratio = check_novelty(unique_smiles, set(file['smiles']))
     #     print('Valid ratio: ', np.round(len(results)/(args.batch_size*gen_iter), 3))
     #     print('Unique ratio: ', np.round(len(unique_smiles)/len(results), 3))
     #     print('Novelty ratio: ', np.round(novel_ratio/100, 3))
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     # unique_smiles = list(set(results['smiles']))
     # canon_smiles = [canonic_smiles(s) for s in results['smiles']]
     # unique_smiles = list(set(canon_smiles))
-    # novel_ratio = check_novelty(unique_smiles, set(data['smiles']))
+    # novel_ratio = check_novelty(unique_smiles, set(file['smiles']))
     # print('Valid ratio: ', np.round(len(results)/(args.batch_size*gen_iter*count), 3))
     # print('Unique ratio: ', np.round(len(unique_smiles)/len(results), 3))
     # print('Novelty ratio: ', np.round(novel_ratio/100, 3))

@@ -11,7 +11,7 @@ class SmileDataset(Dataset):
         chars = sorted(list(set(content)))
         print(chars)
         data_size, vocab_size = len(data), len(chars) 
-        print('data has %d smiles, %d unique characters.' % (data_size, vocab_size))
+        print('file has %d smiles, %d unique characters.' % (data_size, vocab_size))
         
         self.stoi = {ch: i for i, ch in enumerate(chars)}
         self.itos = {i: ch for i, ch in enumerate(chars)}
@@ -24,7 +24,7 @@ class SmileDataset(Dataset):
 
     def __len__(self):
         # if self.debug:
-        #     return math.ceil(len(self.data) / (self.max_len + 1))
+        #     return math.ceil(len(self.file) / (self.max_len + 1))
         # else:
         return len(self.data)
 

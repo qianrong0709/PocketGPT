@@ -73,7 +73,7 @@ class Trainer:         # model, train_dataset, valid_dataset,tconf, train_datase
             pbar = tqdm(enumerate(loader), total=len(loader)) if is_train else enumerate(loader)
             for it, (x, y, p) in pbar:   # 这里有条件
             # for it, (x, y) in pbar:    # 这里无条件
-                # place data on the correct device
+                # place file on the correct device
                 x = x.to(self.device)
                 y = y.to(self.device)
                 p = p.to(self.device)   # 无条件时需要注释掉

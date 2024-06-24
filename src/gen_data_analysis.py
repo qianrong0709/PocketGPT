@@ -92,27 +92,36 @@ def main(path1, path2):
 
 if __name__ == '__main__':
     # 先不做
-    path_59 = '../data/parp1_finetune/parp1_pdb_final.csv'
+    # path_59 = '../file/parp1_finetune/parp1_pdb_final.csv'
 
-    # path_drug = '../data/parp1_finetune/drugbank_parp1_final.csv'
-    # path_more = '../data/parp1_finetune/parp1_500_final.csv'
+    # path_drug = '../file/parp1_finetune/drugbank_parp1_final.csv'
+    # path_more = '../file/parp1_finetune/parp1_500_final.csv'
 
     # 生成分子
-    # gen_path_first = 'test/parp1_v1/parp1_gen_first_finetune.csv'
+    gen_path_first = 'test/parp1_v1/parp1_gen_first_finetune.csv'
     gen_path_59 = 'test/parp1_v1/parp1_gen_second_59.csv'
-    # gen_path_more = 'test/parp1_v1/parp1_gen_second_more.csv'
+    gen_path_more = 'test/parp1_v1/parp1_gen_second_more.csv'
+
+
+    df1 = pd.read_csv(gen_path_more)
+    df1 = df1.drop_duplicates('smiles', keep='first')
+    print(df1)
 
     # main(path_drug,gen_path_first)
     # main(path_more,gen_path_first)
 
     # main(path_drug,gen_path_59)
     # main(path_more,gen_path_59)
-    main(path_59, gen_path_59)
+    # main(path_59, gen_path_59)
 
     # main(path_drug,gen_path_more)
     # main(path_more,gen_path_more)
 
     # pre_train = '../gua_moses_merge.csv'
+
+
+
+
 
 
 

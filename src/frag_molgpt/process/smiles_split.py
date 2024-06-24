@@ -159,63 +159,78 @@ class MolTree(object):
             node.assemble()
 
 
+def frag_pro(smiles):
+    vocab = {}
+    cnt = 0
+    rot = 0
+
+    frag_list = []
+    # print('分子：',smiles)
+    try:
+        mol = Chem.MolFromSmiles(smiles, sanitize=False)
+        moltree = MolTree(mol)
+        cnt += 1
+        if moltree.num_rotatable_bond > 0:
+            rot += 1
+        for c in moltree.nodes:
+            smile_cluster = c.smiles
+            if smile_cluster not in frag_list:
+                frag_list.append(smile_cluster)
+            else:
+                continue
+        # print('片段：', frag_list)
+    except:
+        print('错误')
+
+    return frag_list
+
+
+
+
 if __name__ == "__main__":
     seed = 2022
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
 
-    vocab = {}
-    cnt = 0
-    rot = 0
 
-    # index_path = 'crossdocked_pocket10/index.pkl'
-    # index_path_path = ''
-    # with open(index_path, 'rb') as f:
-    #     index = pickle.load(f)
-    #     print(index)
-    # for i, (pocket_fn, ligand_fn, _, rmsd_str) in enumerate(tqdm(index)):
-    #     if pocket_fn is None: continue
-    #     try:
-    #         path = '/data/FLAG/crossdocked_pocket10/' + ligand_fn
-    #         mol = Chem.MolFromMolFile(path, sanitize=False)
-    #         moltree = MolTree(mol)
-    #         cnt += 1
-    #         if moltree.num_rotatable_bond > 0:
-    #             rot += 1
-    #     except:
-    #         continue
     # path = '../gua_moses_merge.csv'
     # path = '../data/finetune/deeply_all_duplicate_v1.csv'
-    path = '../data/parp1_finetune/parp1_500_train.csv'
-    df = pd.read_csv(path)
-    smiles_list = df['smiles'].tolist()
-    # index = len(smiles_list)
-    for i, smiles in enumerate(tqdm(smiles_list)):
-        try:
-            mol = Chem.MolFromSmiles(smiles, sanitize=False)
-            moltree = MolTree(mol)
-            cnt += 1
-            if moltree.num_rotatable_bond > 0:
-                rot += 1
-        except:
-            continue
 
-        for c in moltree.nodes:
-            smile_cluster = c.smiles
-            if smile_cluster not in vocab:
-                vocab[smile_cluster] = 1
-            else:
-                vocab[smile_cluster] += 1
+    # path = '../data/parp1_finetune/parp1_500_train.csv'
 
-    vocab = dict(sorted(vocab.items(), key=lambda kv: (kv[1], kv[0]), reverse=True))
-    filename = open('./parp1_frag_vocab.txt', 'w')
-    for k, v in vocab.items():
-        filename.write(k + ':' + str(v))
-        filename.write('\n')
-    filename.close()
+    # path = '/home/qianrong/final/src/frag_molgpt/frag_test_v2.csv'
+    #
+    # df = pd.read_csv(path)
+    # df['frag'] = df['smiles'].apply(lambda x: frag_pro(x))
+    # df = df.dropna(subset=['frag'])
+    #
+    # df_exploded = df.explode('frag').reset_index(drop=True)
+    # df_exploded.to_csv('frag_test_v2_frag.csv', index=False)
 
-    # number of molecules and vocab
-    print('Size of the motif vocab:', len(vocab))
-    print('Total number of molecules', cnt)
-    print('Percent of molecules with rotatable bonds:', rot / cnt)
+    smiles = 'COC1=CC=C(CC2NCCc3c2n(C)c2ccc(C)cc32)CC1OC'
+    res = frag_pro(smiles)
+    print(res)
+
+
+
+
+
+
+            # if smile_cluster not in vocab:
+            #     vocab[smile_cluster] = 1
+            # else:
+            #     vocab[smile_cluster] += 1
+
+    # vocab = dict(sorted(vocab.items(), key=lambda kv: (kv[1], kv[0]), reverse=True))
+
+    # filename = open('./parp1_frag_vocab.txt', 'w')
+    # for k, v in vocab.items():
+    #     filename.write(k + ':' + str(v))
+    #     filename.write('\n')
+    # filename.close()
+    #
+    # # number of molecules and vocab
+    # print('Size of the motif vocab:', len(vocab))
+    # print('Total number of molecules', cnt)
+    # print('Percent of molecules with rotatable bonds:', rot / cnt)

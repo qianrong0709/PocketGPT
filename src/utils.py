@@ -70,12 +70,12 @@ def canonic_smiles(smiles_or_mol):
     #Experimental Class for Smiles Enumeration, Iterator and SmilesIterator adapted from Keras 1.2.2
 
 class Iterator(object):
-    """Abstract base class for data iterators.
+    """Abstract base class for file iterators.
     # Arguments
         n: Integer, total number of samples in the dataset to loop over.
         batch_size: Integer, size of a batch.
-        shuffle: Boolean, whether to shuffle the data between epochs.
-        seed: Random seeding for data shuffling.
+        shuffle: Boolean, whether to shuffle the file between epochs.
+        seed: Random seeding for file shuffling.
     """
 
     def __init__(self, n, batch_size, shuffle, seed):
@@ -87,7 +87,7 @@ class Iterator(object):
         self.lock = threading.Lock()
         self.index_generator = self._flow_index(n, batch_size, shuffle, seed)
         if n < batch_size:
-            raise ValueError('Input data length is shorter than batch_size\nAdjust batch_size')
+            raise ValueError('Input file length is shorter than batch_size\nAdjust batch_size')
 
     def reset(self):
         self.batch_index = 0
@@ -126,15 +126,15 @@ class Iterator(object):
 
 
 class SmilesIterator(Iterator):
-    """Iterator yielding data from a SMILES array.
+    """Iterator yielding file from a SMILES array.
     # Arguments
-        x: Numpy array of SMILES input data.
-        y: Numpy array of targets data.
+        x: Numpy array of SMILES input file.
+        y: Numpy array of targets file.
         smiles_data_generator: Instance of `SmilesEnumerator`
             to use for random SMILES generation.
         batch_size: Integer, size of a batch.
-        shuffle: Boolean, whether to shuffle the data between epochs.
-        seed: Random seed for data shuffling.
+        shuffle: Boolean, whether to shuffle the file between epochs.
+        seed: Random seed for file shuffling.
         dtype: dtype to use for returned batch. Set to keras.backend.floatx if using Keras
     """
 
