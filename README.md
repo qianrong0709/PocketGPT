@@ -5,10 +5,10 @@
 ---
 
 ## 🔬 Highlights
-- **Dual-driven Generation**: Simultaneous control of structural (3D pocket compatibility) and functional (ADMET, fragments, interactions) objectives.
-- **SE(3)-Equivariant Modeling**: Captures 3D molecular geometry with physically grounded constraints.
-- **Bayesian Parameter-Space Sampling**: Enables efficient sampling over learnable distributions instead of noisy point-wise perturbation.
-- **Wet-lab Validation**: Computational and experimental evaluation across multiple drug targets.
+- **Structure–Function Integration**: PocketGPT simultaneously considers spatial compatibility with the binding site and functional constraints like ADMET, fragment retention, and interaction fidelity.
+- **Transformer-Based Autoregressive Model**: Enables unified modeling of discrete (atom/bond types) and continuous (3D coordinates) molecular features under conditional controls.
+- **Systematic Evaluation**: Benchmarked across 100 diverse protein targets with strong performance in property satisfaction, geometric alignment, and pharmacophoric relevance.
+- **Wet-Lab Validation**: Generated inhibitors for PARP1 were synthesized and experimentally validated with nanomolar affinity and favorable in vivo PK profiles.
 
 ---
 
@@ -72,7 +72,7 @@ Coming soon (manuscript under review at *Nature Machine Intelligence*)
 ## 📬 Contact
 - Rong Qian (qianrong0709)  
   PhD Student @ HKBU  
-  Email: [qianrong0709@hkbu.edu.hk](mailto:qianrong0709@hkbu.edu.hk)
+  Email: [24483877@life.hkbu.edu.hk](mailto:24483877@hkbu.edu.hk)
 
 ---
 
