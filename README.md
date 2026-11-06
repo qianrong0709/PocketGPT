@@ -10,12 +10,12 @@ PocketGPT brings protein-pocket context and medicinal-chemistry objectives into 
 
 ## Availability
 
-**The refactored development source is now available in `pocketgpt/`, alongside the unchanged legacy research scripts in `src/`. Training and real-structure inference validation are still in progress; new model weights have not been released.**
+**The `master` branch contains only the refactored development package, its tests, configuration examples, and documentation. Legacy research code is preserved in the [historical archive](https://github.com/qianrong0709/PocketGPT/tree/codex/legacy-before-refactor-20261106). Training and real-structure inference validation are still in progress; new model weights have not been released.**
 
 | Component | Status |
 | --- | --- |
 | Published paper and project page | Available through the links above |
-| Legacy research scripts | Available in [`src/`](src/) |
+| Legacy research scripts | Preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/codex/legacy-before-refactor-20261106/src), not in `master` |
 | Refactored development package, tests, and portable configurations | Available in this repository |
 | Validated refactored model checkpoints | Not yet released |
 | Installation and developer commands | See [usage](docs/USAGE.md); a validated pretrained inference example still needs released weights |
@@ -60,23 +60,11 @@ PocketGPT/
 ├── configs/               # Portable configuration examples
 ├── scripts/               # Preparation/validation tools and configurable Slurm wrapper
 ├── tests/                 # Synthetic regression tests; no research dataset bundled
-├── docs/
-│   ├── INPUTS.md          # Training and inference input contracts
-│   ├── RELEASE.md         # Availability and release-readiness checklist
-│   ├── USAGE.md           # Installation, training, and generation commands
-│   └── README.zh-CN.md    # Chinese overview
-└── src/                   # Existing legacy implementation; unchanged
-    ├── model.py
-    ├── dataset.py
-    ├── train.py
-    ├── trainer.py
-    ├── generate.py
-    ├── utils.py
-    ├── vocabulary.json
-    ├── frag_molgpt/       # Fragment-conditioned research scripts
-    ├── case_study/        # Case-study research scripts
-    ├── parp1_vs/          # Downstream screening and analysis
-    └── result/            # Existing analysis figures
+└── docs/
+    ├── INPUTS.md          # Training and inference input contracts
+    ├── RELEASE.md         # Availability and release-readiness checklist
+    ├── USAGE.md           # Installation, training, and generation commands
+    └── README.zh-CN.md    # Chinese overview
 ```
 
 ## Getting started
@@ -95,7 +83,7 @@ python -m unittest discover -s tests -v
 
 Python 3.10 or later is required. The generator uses PyTorch, NumPy, and RDKit. Select a PyTorch build appropriate for your hardware; the exact versions in `requirements-runtime.txt` describe the tested runtime, not a guarantee that every platform or CUDA driver will work unchanged. No research dataset or pretrained checkpoint is included. Access is required while the repository is private.
 
-Start with the [usage guide](docs/USAGE.md). It documents property-plus-single-fragment pretraining, cached-vector fine-tuning, and the generation interface. The interface requires a compatible checkpoint that you supply; do not substitute an unrelated checkpoint or pocket encoder. The legacy `src/` scripts have different entry points and are retained for reference, not used by the new package.
+Start with the [usage guide](docs/USAGE.md). It documents property-plus-single-fragment pretraining, cached-vector fine-tuning, and the generation interface. The interface requires a compatible checkpoint that you supply; do not substitute an unrelated checkpoint or pocket encoder. The legacy scripts have different entry points and are available only in the archive branch; they are not dependencies of the new package.
 
 The current code snapshot passed 190 local CPU regression tests, including five portable-launcher checks. This is implementation-level validation, not completed model training or evidence of paper-level performance. Shared-filesystem publication and trusted-checkpoint limitations are described in [usage](docs/USAGE.md).
 

@@ -2,7 +2,7 @@
 
 [Back to PocketGPT](../README.md)
 
-This guide describes the refactored development package in `pocketgpt/`. Its new trained checkpoints and complete real-structure validation are not yet available. The legacy scripts in `src/` use different arguments and data layouts. See [usage](USAGE.md) for commands supported by the refactored package.
+This guide describes the refactored development package in `pocketgpt/`. Its new trained checkpoints and complete real-structure validation are not yet available. Legacy research scripts have different arguments and data layouts and are preserved only in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/codex/legacy-before-refactor-20261106/src). See [usage](USAGE.md) for commands supported by the refactored package.
 
 ## What will an inference user provide?
 

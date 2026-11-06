@@ -4,9 +4,9 @@
 
 ## Current scope
 
-The default branch contains the refactored development package in `pocketgpt/`, synthetic regression tests, portable configuration examples, usage documentation, and the unchanged legacy research scripts in `src/`. Newly trained checkpoints have not been released. No model-download link or one-command reproduction claim is provided before matching artifacts are available.
+The default branch contains only the refactored development package in `pocketgpt/`, synthetic regression tests, portable configuration examples, packaging metadata, and project documentation. Legacy research scripts and analysis assets are preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/codex/legacy-before-refactor-20261106/src), not in `master`. Newly trained checkpoints have not been released. No model-download link or one-command reproduction claim is provided before matching artifacts are available.
 
-The code upload leaves all existing `src/` files unchanged. It does not alter repository visibility, choose a software license, publish training data, or modify the running training job. The generator core was copied unchanged from the training workbench; personal server launchers were replaced by an explicit, configurable Slurm example.
+Removing the legacy `src/` tree from `master` does not alter its archived version, the refactored core, repository visibility, licensing, or the running server job. No Git history was rewritten. The generator core was copied unchanged from the training workbench; personal server launchers were replaced by an explicit, configurable Slurm example. Compatibility adapters inside `pocketgpt/` remain part of the refactored implementation and are needed to read explicitly identified historical inputs; they are not copies of the removed research scripts.
 
 ## Planned release contents
 
