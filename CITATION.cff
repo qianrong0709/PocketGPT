@@ -1,0 +1,57 @@
+cff-version: 1.2.0
+message: "If you use PocketGPT, please cite the associated article in preferred-citation."
+type: software
+title: PocketGPT
+authors:
+  - family-names: Qian
+    given-names: Rong
+  - family-names: Duan
+    given-names: Jilong
+  - family-names: Liu
+    given-names: Xiaoping
+  - family-names: Wang
+    given-names: Wenxuan
+  - family-names: Zhu
+    given-names: Tingfei
+  - family-names: Jiang
+    given-names: Dejun
+  - family-names: Liu
+    given-names: Jin
+  - family-names: Deng
+    given-names: Youchao
+  - family-names: Lyu
+    given-names: Aiping
+  - family-names: Cao
+    given-names: Dongsheng
+repository-code: "https://github.com/qianrong0709/PocketGPT"
+url: "https://qianrong0709.github.io/PocketGPT_Page/"
+preferred-citation:
+  type: article
+  title: "Structure–function conditioned molecular generation with PocketGPT enables prospective discovery of PARP1 inhibitors"
+  authors:
+    - family-names: Qian
+      given-names: Rong
+    - family-names: Duan
+      given-names: Jilong
+    - family-names: Liu
+      given-names: Xiaoping
+    - family-names: Wang
+      given-names: Wenxuan
+    - family-names: Zhu
+      given-names: Tingfei
+    - family-names: Jiang
+      given-names: Dejun
+    - family-names: Liu
+      given-names: Jin
+    - family-names: Deng
+      given-names: Youchao
+    - family-names: Lyu
+      given-names: Aiping
+    - family-names: Cao
+      given-names: Dongsheng
+  journal: The Innovation Drug Discovery
+  volume: 1
+  issue: 2
+  start: "100028"
+  year: 2026
+  doi: 10.59717/j.xinn-drugdisc.2026.100028
