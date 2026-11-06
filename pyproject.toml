@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pocketgpt-base"
+version = "0.1.0"
+description = "Composable conditioning and reproducible training for PocketGPT"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["torch>=2.5,<3", "numpy>=1.26,<3", "rdkit>=2024.3"]
+
+[project.scripts]
+pocketgpt = "pocketgpt.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pocketgpt*"]

@@ -1,0 +1,11 @@
+{
+  "source_dim": 8,
+  "indices": {
+    "hydrogen_bond": 1,
+    "hydrophobic": 0,
+    "pi_stacking": 3,
+    "salt_bridge": 2,
+    "pi_cation": 4,
+    "halogen_bond": 5
+  }
+}

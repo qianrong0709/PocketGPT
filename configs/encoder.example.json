@@ -1,0 +1,7 @@
+{
+  "repo": "/absolute/path/to/original/DeeplyTough",
+  "python": "/absolute/path/to/original/deeplytough/environment/bin/python",
+  "weights": "/absolute/path/to/original/model.pth.tar",
+  "mgltools_prefix": "/absolute/path/to/original/deeplytough_mgltools",
+  "cache": "/absolute/path/to/local/pocket_cache"
+}

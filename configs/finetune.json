@@ -1,0 +1,14 @@
+{
+  "stage": "finetune",
+  "conditions": "all",
+  "train_data": "../data/conditional/train.jsonl",
+  "valid_data": "../data/conditional/valid.jsonl",
+  "output_dir": "../runs/finetune",
+  "condition_init_checkpoint": "../runs/condition-pretrain-v2/best.pt",
+  "vocabulary": "../data/condition-pretrain-v2/vocabulary.json",
+  "model": {"block_size": 256, "n_layer": 8, "n_head": 8, "n_embd": 256, "dropout": 0.1},
+  "training": {"epochs": 20, "batch_size": 32, "learning_rate": 0.0001, "warmup_steps": 500,
+               "condition_dropout": 0.35, "property_dropout": 0.2,
+               "weight_decay": 0.01, "grad_clip": 1.0, "save_every_steps": 500,
+               "seed": 42, "device": "cuda", "cpu_threads": 4}
+}

@@ -10,15 +10,15 @@ PocketGPT brings protein-pocket context and medicinal-chemistry objectives into 
 
 ## Availability
 
-**This repository currently contains the legacy research implementation. A refactored training and inference package is under validation and has not yet been uploaded here.** This documentation update does not replace the existing code or release new model weights.
+**The refactored development source is now available in `pocketgpt/`, alongside the unchanged legacy research scripts in `src/`. Training and real-structure inference validation are still in progress; new model weights have not been released.**
 
 | Component | Status |
 | --- | --- |
 | Published paper and project page | Available through the links above |
 | Legacy research scripts | Available in [`src/`](src/) |
-| Refactored package and portable configurations | Pending release after validation |
+| Refactored development package, tests, and portable configurations | Available in this repository |
 | Validated refactored model checkpoints | Not yet released |
-| Reproducible quick-start example | Pending the matching code, environment, and checkpoint release |
+| Installation and developer commands | See [usage](docs/USAGE.md); a validated pretrained inference example still needs released weights |
 
 The paper's reported results and the new implementation's validation status are separate. A successful code test is not evidence that a new checkpoint reproduces the paper.
 
@@ -54,9 +54,16 @@ The paper studies joint structural and functional conditioning and reports a pro
 PocketGPT/
 ├── README.md
 ├── CITATION.cff
+├── pyproject.toml
+├── requirements-runtime.txt # Exact versions used in the tested runtime
+├── pocketgpt/             # Refactored generator, data contracts, and feature adapters
+├── configs/               # Portable configuration examples
+├── scripts/               # Preparation/validation tools and configurable Slurm wrapper
+├── tests/                 # Synthetic regression tests; no research dataset bundled
 ├── docs/
 │   ├── INPUTS.md          # Training and inference input contracts
 │   ├── RELEASE.md         # Availability and release-readiness checklist
+│   ├── USAGE.md           # Installation, training, and generation commands
 │   └── README.zh-CN.md    # Chinese overview
 └── src/                   # Existing legacy implementation; unchanged
     ├── model.py
@@ -74,16 +81,23 @@ PocketGPT/
 
 ## Getting started
 
-You can clone the repository to inspect the current research scripts:
+Clone and install the refactored development package in an isolated environment:
 
 ```bash
 git clone https://github.com/qianrong0709/PocketGPT.git
 cd PocketGPT
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e .
+python -m pocketgpt --help
+python -m unittest discover -s tests -v
 ```
 
-Access is required while the repository is private. The legacy scripts are not yet packaged as a portable, one-command installation. There is currently no root `environment.yml`, packaged generation shell script, or validated checkpoint download to use as a complete quick start. Do not substitute an unrelated checkpoint or pocket encoder.
+Python 3.10 or later is required. The generator uses PyTorch, NumPy, and RDKit. Select a PyTorch build appropriate for your hardware; the exact versions in `requirements-runtime.txt` describe the tested runtime, not a guarantee that every platform or CUDA driver will work unchanged. No research dataset or pretrained checkpoint is included. Access is required while the repository is private.
 
-The forthcoming release will pair code, dependency instructions, configuration examples, model checkpoints, and a tested inference example. Until those artifacts are available together, see [release status](docs/RELEASE.md) rather than treating development-interface examples as commands supported by the current checkout.
+Start with the [usage guide](docs/USAGE.md). It documents property-plus-single-fragment pretraining, cached-vector fine-tuning, and the generation interface. The interface requires a compatible checkpoint that you supply; do not substitute an unrelated checkpoint or pocket encoder. The legacy `src/` scripts have different entry points and are retained for reference, not used by the new package.
+
+The current code snapshot passed 190 local CPU regression tests, including five portable-launcher checks. This is implementation-level validation, not completed model training or evidence of paper-level performance. Shared-filesystem publication and trusted-checkpoint limitations are described in [usage](docs/USAGE.md).
 
 **Inference users will not need to prepare a training JSONL dataset.** The intended interface accepts a selected pocket and optional property, fragment, and IFP conditions. A full protein alone does not identify which binding site to use. See [what users need to provide](docs/INPUTS.md).
 

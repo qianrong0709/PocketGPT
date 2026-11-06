@@ -4,13 +4,13 @@
 
 ## Current scope
 
-The default branch contains legacy research scripts and project documentation. The refactored code and newly trained checkpoints have not yet been uploaded to this repository. No model-download link or one-command reproduction claim is provided before matching artifacts are available.
+The default branch contains the refactored development package in `pocketgpt/`, synthetic regression tests, portable configuration examples, usage documentation, and the unchanged legacy research scripts in `src/`. Newly trained checkpoints have not been released. No model-download link or one-command reproduction claim is provided before matching artifacts are available.
 
-This documentation refresh leaves all existing `src/` files unchanged. It does not alter repository visibility, choose a software license, publish training data, or modify the running training job.
+The code upload leaves all existing `src/` files unchanged. It does not alter repository visibility, choose a software license, publish training data, or modify the running training job. The generator core was copied unchanged from the training workbench; personal server launchers were replaced by an explicit, configurable Slurm example.
 
 ## Planned release contents
 
-The following is a release checklist, not a list of files already present:
+The current development snapshot includes the generator package, condition masks, six portable configurations, synthetic tests, installation instructions, and a configurable Slurm wrapper. A validated model release additionally needs:
 
 - A versioned generator package with explicit condition selection and consistent missing-label masks.
 - Portable training/inference configurations, with no machine-specific paths or credentials.

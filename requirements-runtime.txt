@@ -1,0 +1,5 @@
+# Versions used in the tested runtime. Choose a PyTorch build for your platform.
+# This is not a full transitive dependency lock or a CUDA-driver compatibility guarantee.
+torch==2.11.0
+numpy==2.2.6
+rdkit==2026.3.1

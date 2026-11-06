@@ -2,7 +2,7 @@
 
 [Back to PocketGPT](../README.md)
 
-This guide describes the refactored workflow under validation. That package and its new checkpoints are not yet included in this repository. The legacy scripts in `src/` may use different arguments and data layouts; this page is not a promise that the current checkout implements the forthcoming interface.
+This guide describes the refactored development package in `pocketgpt/`. Its new trained checkpoints and complete real-structure validation are not yet available. The legacy scripts in `src/` use different arguments and data layouts. See [usage](USAGE.md) for commands supported by the refactored package.
 
 ## What will an inference user provide?
 
@@ -75,7 +75,7 @@ The selected pretraining policy preserves original fragment text for tokenizatio
 - **JSONL** is an internal, row-wise training/cache representation in the refactored loader. Preparing it does not compute a new learned embedding or replace the model's embedding/projector modules.
 - **JSON** can describe a programmatic inference request or configuration. A direct command-line interface can pass the same values without requiring users to write JSON themselves.
 
-Training-cache preparation is a developer/data-maintainer step, not a prerequisite imposed on every inference user. The release must provide a tested example that accepts ordinary structure files and optional target values.
+Training-cache preparation is a developer/data-maintainer step, not a prerequisite imposed on every inference user. The validated checkpoint release must provide a tested example that accepts ordinary structure files and optional target values.
 
 ## Outputs and interpretation
 
