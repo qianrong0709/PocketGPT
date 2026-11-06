@@ -10,12 +10,12 @@ PocketGPT brings protein-pocket context and medicinal-chemistry objectives into 
 
 ## Availability
 
-**The `master` branch contains only the refactored development package, its tests, configuration examples, and documentation. Legacy research code is preserved in the [historical archive](https://github.com/qianrong0709/PocketGPT/tree/codex/legacy-before-refactor-20261106). Training and real-structure inference validation are still in progress; new model weights have not been released.**
+**The `master` branch contains only the refactored development package, its tests, configuration examples, and documentation. Legacy research code is preserved in the [historical archive](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106). Training and real-structure inference validation are still in progress; new model weights have not been released.**
 
 | Component | Status |
 | --- | --- |
 | Published paper and project page | Available through the links above |
-| Legacy research scripts | Preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/codex/legacy-before-refactor-20261106/src), not in `master` |
+| Legacy research scripts | Preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src), not in `master` |
 | Refactored development package, tests, and portable configurations | Available in this repository |
 | Validated refactored model checkpoints | Not yet released |
 | Installation and developer commands | See [usage](docs/USAGE.md); a validated pretrained inference example still needs released weights |

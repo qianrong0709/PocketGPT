@@ -2,7 +2,7 @@
 
 [Back to PocketGPT](../README.md) · [Input contracts](INPUTS.md) · [Release status](RELEASE.md)
 
-The root `pocketgpt/` package is the refactored implementation and the only implementation on `master`. Older research scripts are preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/codex/legacy-before-refactor-20261106/src); do not mix their vocabularies, checkpoints, or command-line arguments with this package. New trained checkpoints and research datasets are **not included**; the commands below require your own compatible local inputs and, for generation, a trained checkpoint.
+The root `pocketgpt/` package is the refactored implementation and the only implementation on `master`. Older research scripts are preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src); do not mix their vocabularies, checkpoints, or command-line arguments with this package. New trained checkpoints and research datasets are **not included**; the commands below require your own compatible local inputs and, for generation, a trained checkpoint.
 
 ## Install and test
 
