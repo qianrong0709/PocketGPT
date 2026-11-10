@@ -130,6 +130,10 @@ def main():
     gen.add_argument("--output", required=True)
     audit = sub.add_parser("inspect-checkpoint")
     audit.add_argument("path")
+    export = sub.add_parser("export-model", help="Export inference weights and vocabulary without training data or paths")
+    export.add_argument("--checkpoint", required=True)
+    export.add_argument("--output", required=True)
+    export.add_argument("--model-id", required=True)
     args = parser.parse_args()
     if args.command == "prepare":
         from .preparation import prepare_dataset
@@ -193,6 +197,9 @@ def main():
         encoder = json.loads(Path(args.encoder_config).read_text()) if args.encoder_config else None
         result = generate(args.checkpoint, request, args.output, selected, args.count,
                           args.temperature, args.top_k, args.max_tokens, args.batch_size, args.seed, args.device, encoder)
+    elif args.command == "export-model":
+        from .release import export_inference
+        result = export_inference(args.checkpoint, args.output, args.model_id)
     else:
         import torch
         state = torch.load(args.path, map_location="cpu", weights_only=True, mmap=True)

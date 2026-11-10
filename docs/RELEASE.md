@@ -1,53 +1,23 @@
-# Release status and readiness
+# Release artifacts
 
-[Back to PocketGPT](../README.md)
+[Overview](../README.md) · [Model card](MODEL_CARD.md) · [Generation](GENERATION.md)
 
-## Current scope
+## v1.0.0
 
-The default branch contains only the refactored development package in `pocketgpt/`, synthetic regression tests, portable configuration examples, packaging metadata, and project documentation. Legacy research scripts and analysis assets are preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src), not in `master`. Newly trained checkpoints have not been released. No model-download link or one-command reproduction claim is provided before matching artifacts are available.
+The [GitHub release](https://github.com/qianrong0709/PocketGPT/releases/tag/v1.0.0) pairs the generator source with `pocketgpt-v1.pt`, an inference-only export of the selected frozen-backbone fine-tuning checkpoint. The artifact embeds its vocabulary and architecture. `models/pocketgpt-v1.json` records the exact download URL, byte count, and SHA-256 checksum used by `scripts/download_model.py`.
 
-Removing the legacy `src/` tree from `master` does not alter its archived version, the refactored core, repository visibility, licensing, or the running server job. No Git history was rewritten. The generator core was copied unchanged from the training workbench; personal server launchers were replaced by an explicit, configurable Slurm example. Compatibility adapters inside `pocketgpt/` remain part of the refactored implementation and are needed to read explicitly identified historical inputs; they are not copies of the removed research scripts.
+The repository includes portable CPU/CUDA setup instructions, CLI and Python generation examples, condition schemas, frozen-backbone/early-stopping training support, and synthetic regression tests. Legacy research scripts remain in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src).
 
-## Planned release contents
+Only the inference model is distributed as a release asset; full run directories, optimizer/RNG state, server paths, logs, caches, and research datasets are not part of this artifact. The inference model is not an exact-resume checkpoint.
 
-The current development snapshot includes the generator package, condition masks, six portable configurations, synthetic tests, installation instructions, and a configurable Slurm wrapper. A validated model release additionally needs:
+## Integrity and compatibility
 
-- A versioned generator package with explicit condition selection and consistent missing-label masks.
-- Portable training/inference configurations, with no machine-specific paths or credentials.
-- Separate, documented generator and legacy pocket-encoder environments, including third-party license requirements.
-- A small, redistribution-permitted example and a complete command from user inputs to generated SMILES.
-- Checkpoint files, SHA256 checksums, exact code revision, vocabulary, model configuration, and feature/encoder provenance.
-- A model card covering training stages, data provenance and availability, evaluation scope, supported conditions, and limitations.
-- Reproducible evaluation commands and a clear distinction between paper results and newly measured checkpoint results.
+```bash
+python scripts/download_model.py
+python scripts/download_model.py --verify-only
+python -m pocketgpt inspect-checkpoint weights/pocketgpt-v1.pt
+```
 
-## Validation gates
+Keep the source revision, model file, and embedded vocabulary together. Review the [model card](MODEL_CARD.md), especially the historical pocket-descriptor provenance constraint. Third-party encoder source, weights, and preprocessing tools have their own licensing terms and are not bundled with this generator artifact.
 
-- [ ] Complete conditional pretraining and review train/validation learning curves and checkpoint integrity.
-- [ ] Complete cached-vector fine-tuning with properties, a single fragment, and six-type IFP supervision.
-- [ ] Evaluate generation validity, uniqueness, diversity, property control, fragment retention, and independently assessed pocket/IFP behavior.
-- [ ] Measure the requested condition combinations; do not infer their quality from mask unit tests alone.
-- [ ] Verify compatibility between newly encoded raw pockets and the cached descriptors used during training.
-- [ ] Verify a real protein/pocket input through feature preparation, caching, checkpoint loading, and generation.
-- [ ] Run a fresh-environment installation and inference test from the exact release revision.
-- [ ] Label complex-grouped validation accurately; do not claim protein-held-out generalization without an appropriate split.
-- [ ] Review the publication's supplementary methods before claiming exact architectural or hyperparameter reproduction.
-
-Training and synthetic/regression tests alone do not complete these gates. The frozen encoder adapter is an automatic workflow, not joint differentiable PDB-to-generation training.
-
-## Artifact publication checks
-
-- [ ] Obtain the authors'/rights holders' approval for the chosen code and checkpoint licenses. Do not assign MIT, Apache, CC BY, or another license by assumption.
-- [ ] Review source-dataset, third-party code, preprocessing-tool, and pretrained-encoder redistribution terms separately.
-- [ ] Inspect the candidate release for API keys, tokens, credentials, personal information, internal paths, research logs, and unintended data files.
-- [ ] Review tracked legacy files and relevant Git history before making the repository public. If a credential is found, arrange revocation/rotation; removing it from a later commit is not enough.
-- [ ] Publish only explicitly approved code, documentation, examples, and checkpoint artifacts. Do not upload private CSVs, protein structures, experiment outputs, or environment/cache directories by default.
-- [ ] Choose a supported distribution route for large checkpoints and publish integrity metadata; do not commit arbitrary training output directories into Git.
-- [ ] Keep repository visibility unchanged until the owner explicitly authorizes a public release.
-
-No external upload, model hosting, CI run on research data, or repository visibility change is authorized merely by this checklist.
-
-## What users should expect at release
-
-A user should be able to follow one version-matched installation guide, obtain one identified checkpoint, provide a selected pocket and optional constraints, and run a documented generation command. They should not need access to the authors' server paths or convert a training CSV to JSONL just to request molecules.
-
-Until that path has been validated and released, the project page and paper describe the research, while this repository's status section describes software availability.
+No new code/model license is assigned by the packaging process. Contact the authors for permissions not explicitly granted by an applicable license. Research results and publication-level claims should be cited to the paper rather than inferred from an installation or generation smoke test.

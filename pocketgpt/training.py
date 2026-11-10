@@ -15,11 +15,31 @@ from .data import BatchBuilder, JsonlDataset, inspect_manifest, row_fragment_tex
 from .model import PocketGPT
 from .pocket import PocketResolver, file_sha256
 from .tokenizer import SmilesTokenizer
+from .training_control import (EarlyStopping, configure_parameters, set_training_mode,
+                               training_options, verify_frozen_backbone,
+                               optimizer_parameter_groups, verify_frozen_optimizer)
 
 
 def recipe_path(recipe, value):
     path = Path(value)
     return str((Path(recipe).resolve().parent / path).resolve()) if not path.is_absolute() else str(path)
+
+
+def training_tokenizer(recipe, recipe_file, train_data, conditions, fragment_representation):
+    def texts():
+        for row in train_data:
+            yield row["smiles"]
+            if "fragment" in conditions and row.get("fragment"):
+                yield row_fragment_text(row, fragment_representation)
+    if not recipe.get("vocabulary"):
+        return SmilesTokenizer.build(texts())
+    tokenizer = SmilesTokenizer.load(recipe_path(recipe_file, recipe["vocabulary"]))
+    if recipe["training"].get("train_new_token_rows", False):
+        # Preserve every source row and its ID. Learn missing training tokens
+        # only; never derive the vocabulary from validation labels.
+        found = {token for text in texts() for token in SmilesTokenizer.split(text)}
+        tokenizer = SmilesTokenizer([*tokenizer.tokens, *sorted(found - tokenizer.stoi.keys())])
+    return tokenizer
 
 
 def training_stage_contract(stage, conditions, split_group="protein_id"):
@@ -94,6 +114,29 @@ def runtime_contract(device):
             "deterministic_algorithms": torch.are_deterministic_algorithms_enabled()}
 
 
+def evaluate_validation(model, builder, valid_data, batch_size, device):
+    """Full, token-weighted validation; no stochastic condition removal."""
+    model.eval()
+    sum_loss, sum_tokens = 0.0, 0
+    with torch.no_grad():
+        for offset in range(0, len(valid_data), batch_size):
+            rows = [valid_data[i] for i in range(offset, min(offset + batch_size, len(valid_data)))]
+            x, y, batch = builder(rows, device)
+            result = model(x, batch, y)
+            value = float(result["loss"])
+            if not math.isfinite(value):
+                raise FloatingPointError("Non-finite validation loss; no checkpoint overwrite")
+            count = int(y.ne(0).sum())
+            sum_loss += value * count
+            sum_tokens += count
+    if not sum_tokens:
+        raise ValueError("Validation contains no target tokens")
+    value = sum_loss / sum_tokens
+    if not math.isfinite(value):
+        raise FloatingPointError("Non-finite validation loss; no checkpoint overwrite")
+    return value
+
+
 def train(recipe_file, resume=None, max_steps=None, device_override=None):
     recipe = json.loads(Path(recipe_file).read_text())
     stage = recipe["stage"]
@@ -103,6 +146,7 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
     split_group = recipe.get("split_group", "protein_id")
     stage_contract = training_stage_contract(stage, conditions, split_group=split_group)
     settings = recipe["training"]
+    options = training_options(recipe)
     for name, default in (("epochs", 10), ("batch_size", 32), ("save_every_steps", 1000), ("log_every_steps", 100)):
         if int(settings.get(name, default)) < 1:
             raise ValueError(name + " must be positive")
@@ -164,15 +208,7 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
         inherited_properties = tuple(state.get("inherited_trained_properties", ()))
         inherited_encoder_signature = state.get("inherited_pocket_encoder_signature")
     else:
-        if recipe.get("vocabulary"):
-            tokenizer = SmilesTokenizer.load(recipe_path(recipe_file, recipe["vocabulary"]))
-        else:
-            def texts():
-                for row in train_data:
-                    yield row["smiles"]
-                    if "fragment" in conditions and row.get("fragment"):
-                        yield row_fragment_text(row, fragment_representation)
-            tokenizer = SmilesTokenizer.build(texts())
+        tokenizer = training_tokenizer(recipe, recipe_file, train_data, conditions, fragment_representation)
         model = PocketGPT(ModelConfig(vocab_size=len(tokenizer.tokens), **recipe.get("model", {})))
         initializers = [name for name in ("init_checkpoint", "condition_init_checkpoint", "warm_start_checkpoint", "legacy_checkpoint") if recipe.get(name)]
         if len(initializers) > 1:
@@ -210,6 +246,13 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
         model.to(device)
         if warm_start:
             (run / "initialization_report.json").write_text(json.dumps(warm_start, indent=2) + "\n")
+    if state and options["freeze_backbone"] and state.get("parameter_policy") is None:
+        raise ValueError("Frozen resume requires its original parameter policy")
+    parameter_policy = configure_parameters(
+        model, options["freeze_backbone"], warm_start,
+        saved_policy=state.get("parameter_policy") if state else None,
+        tokenizer=tokenizer, train_new_token_rows=options["train_new_token_rows"])
+    (run / "parameter_policy.json").write_text(json.dumps(parameter_policy, indent=2) + "\n")
     tokenizer.save(run / "vocabulary.json")
     (run / "recipe.json").write_text(json.dumps(recipe, indent=2) + "\n")
     # A ligand-only stage never resolves an old encoder profile or referenced PDB.
@@ -219,8 +262,10 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
     encoder_signature = contract["pocket"]["signature"] if contract["pocket"] else inherited_encoder_signature
     if state and state.get("pocket_encoder_signature") != encoder_signature:
         raise ValueError("Checkpoint pocket encoder differs from current training inputs")
-    optimizer = torch.optim.AdamW(model.parameters(), lr=float(settings.get("learning_rate", 0.0003)),
-                                  weight_decay=float(settings.get("weight_decay", 0.01)))
+    trainable_parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    optimizer = torch.optim.AdamW(
+        optimizer_parameter_groups(model, parameter_policy, float(settings.get("weight_decay", 0.01))),
+        lr=float(settings.get("learning_rate", 0.0003)))
     if state:
         optimizer.load_state_dict(state["optimizer"])
         # Optimizer tensors follow parameter devices after CPU checkpoint loading.
@@ -229,11 +274,18 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
                 if torch.is_tensor(value) and key != "step":
                     optim_state[key] = value.to(device)
         restore_rng(state["rng"])
+    verify_frozen_optimizer(model, optimizer, parameter_policy)
     epochs = int(settings.get("epochs", 10))
     batch_size = int(settings.get("batch_size", 32))
     if min(epochs, batch_size) < 1:
         raise ValueError("epochs and batch_size must be positive")
     batches_per_epoch = math.ceil(len(train_data) / batch_size)
+    if state and options["early_stopping"] and "early_stopping_state" not in state:
+        raise ValueError("Resume cannot reset early stopping patience")
+    stopping = EarlyStopping(options["early_stopping"], batches_per_epoch,
+                             state.get("early_stopping_state") if state else None)
+    if stopping.last_step > global_step:
+        raise ValueError("Validation state is ahead of the checkpoint step")
     total_steps = epochs * batches_per_epoch
     warmup = int(settings.get("warmup_steps", 0))
     condition_dropout = float(settings.get("condition_dropout", 0.35 if conditions else 0.0))
@@ -254,6 +306,8 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
                 "optimizer": optimizer.state_dict(), "recipe": recipe,
                 "data_fingerprints": data_fingerprints, "global_step": global_step,
                 "training_contract": contract,
+                "parameter_policy": parameter_policy,
+                "early_stopping_state": stopping.state_dict(),
                 "fragment_representation": fragment_representation,
                 "split_group": stage_contract["split_identity"],
                 "validation_scope": stage_contract["validation_scope"],
@@ -269,9 +323,54 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
                 "runtime": {"torch": str(torch.__version__), "device": device},
                 "initialization": warm_start, "warm_start": warm_start}
 
+    def finish(status, epoch, batch_index):
+        summary = {"status": status, "step": global_step, "completed_epochs": epoch,
+                   "next_batch": batch_index, "best_loss": best_loss,
+                   "checkpoint": str(run / "last.pt"), "best_checkpoint": str(run / "best.pt"),
+                   "freeze_backbone": options["freeze_backbone"],
+                   "early_stopping_state": stopping.state_dict()}
+        (run / "training_summary.json").write_text(json.dumps(summary, indent=2) + "\n")
+        print(json.dumps(summary), flush=True)
+        return str(run / "last.pt")
+
+    def publish(epoch, batch_index):
+        verify_frozen_backbone(model, parameter_policy)
+        verify_frozen_optimizer(model, optimizer, parameter_policy)
+        saved = payload(epoch, batch_index)
+        save_checkpoint(run / "last.pt", saved)
+        return saved
+
+    def validate(epoch_number, checkpoint_epoch, batch_index, kind):
+        nonlocal best_loss
+        try:
+            validation_loss = evaluate_validation(model, builder, valid_data, batch_size, device)
+        finally:
+            set_training_mode(model, options["freeze_backbone"])
+        stopped = stopping.observe(validation_loss, global_step)
+        improved = validation_loss < best_loss
+        if improved:
+            best_loss = validation_loss
+        saved = publish(checkpoint_epoch, batch_index)
+        # Always retain the true minimum, including improvements smaller than
+        # min_delta. The stopping anchor and best.pt serve different purposes.
+        if improved:
+            save_checkpoint(run / "best.pt", saved)
+        summary = {"epoch": epoch_number, "step": global_step, "validation_loss": validation_loss,
+                   "best_loss": best_loss, "validation_scope": stage_contract["validation_scope"],
+                   "validation_kind": kind, "completed_epochs": checkpoint_epoch,
+                   "next_batch": batch_index, "early_stopping_state": stopping.state_dict()}
+        with history.open("a") as handle:
+            handle.write(json.dumps(summary) + "\n")
+        print(json.dumps(summary), flush=True)
+        return stopped
+
+    if stopping.stopped:
+        # Exact resume must not silently turn a stopped run into more training.
+        return finish("early_stopped", start_epoch, next_batch)
+
     for epoch in range(start_epoch, epochs):
         order = torch.randperm(len(train_data), generator=torch.Generator().manual_seed(seed + epoch)).tolist()
-        model.train()
+        set_training_mode(model, options["freeze_backbone"])
         start = next_batch if epoch == start_epoch else 0
         for batch_index in range(start, batches_per_epoch):
             rows = [train_data[index] for index in order[batch_index * batch_size:(batch_index + 1) * batch_size]]
@@ -297,7 +396,8 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
             if not torch.isfinite(loss):
                 raise FloatingPointError("Non-finite training loss; no checkpoint overwrite")
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), float(settings.get("grad_clip", 1.0)))
+            torch.nn.utils.clip_grad_norm_(trainable_parameters, float(settings.get("grad_clip", 1.0)),
+                                           error_if_nonfinite=True)
             optimizer.step()
             global_step += 1
             metric = {"step": global_step, "epoch": epoch + 1, "train_loss": float(loss.detach()),
@@ -306,33 +406,16 @@ def train(recipe_file, resume=None, max_steps=None, device_override=None):
                 handle.write(json.dumps(metric) + "\n")
             if global_step == 1 or global_step % int(settings.get("log_every_steps", 100)) == 0:
                 print(json.dumps(metric), flush=True)
-            if global_step % save_every == 0 or (max_steps is not None and global_step >= max_steps):
-                save_checkpoint(run / "last.pt", payload(epoch, batch_index + 1))
+            interval = options["validation_every_steps"]
+            validated = bool(interval and global_step % interval == 0 and batch_index + 1 < batches_per_epoch)
+            if validated:
+                if validate(epoch + 1, epoch, batch_index + 1, "step"):
+                    return finish("early_stopped", epoch, batch_index + 1)
+            elif global_step % save_every == 0 or (max_steps is not None and global_step >= max_steps):
+                publish(epoch, batch_index + 1)
             if max_steps is not None and global_step >= max_steps:
                 print(json.dumps({"status": "step_limit", "step": global_step, "last_loss": metric["train_loss"], "checkpoint": str(run / "last.pt")}))
                 return str(run / "last.pt")
-        # Full, token-weighted validation with no condition dropout.
-        model.eval()
-        sum_loss, sum_tokens = 0.0, 0
-        with torch.no_grad():
-            for offset in range(0, len(valid_data), batch_size):
-                rows = [valid_data[i] for i in range(offset, min(offset + batch_size, len(valid_data)))]
-                x, y, batch = builder(rows, device)
-                result = model(x, batch, y)
-                count = int(y.ne(0).sum())
-                sum_loss += float(result["loss"]) * count
-                sum_tokens += count
-        validation_loss = sum_loss / sum_tokens
-        improved = validation_loss < best_loss
-        if improved:
-            best_loss = validation_loss
-        saved = payload(epoch + 1, 0)
-        save_checkpoint(run / "last.pt", saved)
-        if improved:
-            save_checkpoint(run / "best.pt", saved)
-        summary = {"epoch": epoch + 1, "step": global_step, "validation_loss": validation_loss,
-                   "best_loss": best_loss, "validation_scope": stage_contract["validation_scope"]}
-        with history.open("a") as handle:
-            handle.write(json.dumps(summary) + "\n")
-        print(json.dumps(summary), flush=True)
-    return str(run / "last.pt")
+        if validate(epoch + 1, epoch + 1, 0, "epoch"):
+            return finish("early_stopped", epoch + 1, 0)
+    return finish("completed", epochs, 0)

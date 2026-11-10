@@ -32,3 +32,4 @@ logs/
 *.zip
 *.tar.gz
 .DS_Store
+outputs/

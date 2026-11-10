@@ -1,0 +1,17 @@
+{
+  "model_id": "pocketgpt-v1",
+  "release": "v1.0.0",
+  "artifact_type": "inference",
+  "filename": "pocketgpt-v1.pt",
+  "url": "https://github.com/qianrong0709/PocketGPT/releases/download/v1.0.0/pocketgpt-v1.pt",
+  "bytes": 33291413,
+  "sha256": "b70fb11960953d959d3d413a53898dbeb5f8f9e16bb6f82fbfc2e3c08ef7de3d",
+  "global_step": 42664,
+  "architecture_version": 2,
+  "vocabulary_size": 81,
+  "trained_conditions": ["pocket", "properties", "fragment", "ifp"],
+  "trained_properties": ["logp", "qed", "tpsa", "sas"],
+  "fragment_representation": "raw-smiles-v1",
+  "pocket_encoder_signature": "legacy-precomputed-unverified",
+  "exact_training_resume": false
+}

@@ -22,7 +22,8 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
     from rdkit import rdBase
     from rdkit.Contrib.SA_Score import sascorer  # noqa: F401: required by generation
 
-    from pocketgpt.checkpoint import load_checkpoint
+    from pocketgpt.checkpoint import (load_checkpoint, validate_fragment_initialization,
+                                      warm_start_conditioned)
     from pocketgpt.config import (ModelConfig, parse_conditions,
                                  DEFAULT_FRAGMENT_REPRESENTATION, validate_fragment_representation)
     from pocketgpt.data import JsonlDataset, row_fragment_text, inspect_manifest
@@ -30,7 +31,9 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
     from pocketgpt.pocket import file_sha256
     from pocketgpt.tokenizer import SmilesTokenizer
     from pocketgpt.training import (implementation_fingerprint, input_contract, recipe_path,
-                                    runtime_contract, training_stage_contract)
+                                    runtime_contract, training_stage_contract, training_tokenizer)
+    from pocketgpt.training_control import (EarlyStopping, configure_parameters,
+                                            set_training_mode, training_options)
 
     project_root = Path(project_root).resolve()
     if expected_python_prefix is not None:
@@ -52,6 +55,7 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
         recipe.get("fragment_representation", DEFAULT_FRAGMENT_REPRESENTATION))
     stage_contract = training_stage_contract(stage, conditions, split_group=split_group)
     settings = recipe["training"]
+    options = training_options(recipe)
     threads = int(settings.get("cpu_threads", 2))
     if threads < 1 or threads > int(os.environ.get("SLURM_CPUS_PER_TASK", threads)):
         raise ValueError("cpu_threads must fit the explicitly allocated CPU resources")
@@ -100,15 +104,7 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
         contract["implementation_sha256"] = implementation_fingerprint()
         contract["runtime"] = runtime_contract(device)
         fingerprints = {name: file_sha256(path) for name, path in paths.items()}
-        if recipe.get("vocabulary"):
-            tokenizer = SmilesTokenizer.load(recipe_path(config_file, recipe["vocabulary"]))
-        else:
-            def texts():
-                for row in train:
-                    yield row["smiles"]
-                    if "fragment" in conditions and row.get("fragment"):
-                        yield row_fragment_text(row, fragment_representation)
-            tokenizer = SmilesTokenizer.build(texts())
+        tokenizer = training_tokenizer(recipe, config_file, train, conditions, fragment_representation)
         model_config = ModelConfig(vocab_size=len(tokenizer.tokens), **recipe.get("model", {}))
         if model_config.architecture_version != 2 or model_config.pocket_dim != 128:
             raise ValueError("New training requires architecture v2 and the original 128-dimensional pocket interface")
@@ -125,6 +121,7 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
             lengths[name] = {"molecule_with_eos": max_molecule, "fragment": max_fragment}
         rows = {"train": len(train), "valid": len(valid)}
 
+    frozen_model, parameter_policy = None, None
     if resume:
         resume_path = Path(resume).resolve()
         if resume_path.parent != run:
@@ -134,12 +131,42 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
             raise ValueError("Exact resume contract changed; use a new warm-start run")
         if old_tokenizer.tokens != tokenizer.tokens or old_model.config.to_dict() != model_config.to_dict():
             raise ValueError("Resume architecture or vocabulary mismatch")
-        del old_model
+        if options["early_stopping"] and "early_stopping_state" not in saved:
+            raise ValueError("Resume cannot reset early stopping patience")
+        EarlyStopping(options["early_stopping"], math.ceil(rows["train"] / int(settings.get("batch_size", 32))),
+                      saved.get("early_stopping_state"))
+        if options["freeze_backbone"]:
+            if saved.get("parameter_policy") is None:
+                raise ValueError("Frozen resume requires its original parameter policy")
+            parameter_policy = configure_parameters(
+                old_model, True, saved.get("warm_start"), saved_policy=saved["parameter_policy"],
+                tokenizer=old_tokenizer, train_new_token_rows=options["train_new_token_rows"])
+            frozen_model = old_model
+        else:
+            del old_model
+    elif options["freeze_backbone"]:
+        # Verify the actual initializer and full vocabulary before allowing a
+        # frozen run. A random synthetic decoder is not a valid initializer.
+        if recipe.get("condition_init_checkpoint"):
+            frozen_model = PocketGPT(model_config)
+            report = warm_start_conditioned(
+                frozen_model, recipe_path(config_file, recipe["condition_init_checkpoint"]),
+                tokenizer, conditions, fragment_representation=fragment_representation)
+        else:
+            frozen_model, initial_tokenizer, initial_state = load_checkpoint(
+                recipe_path(config_file, recipe["init_checkpoint"]))
+            validate_fragment_initialization(initial_state, fragment_representation)
+            if frozen_model.config.to_dict() != model_config.to_dict() or initial_tokenizer.tokens != tokenizer.tokens:
+                raise ValueError("Frozen init_checkpoint requires matching model configuration and vocabulary")
+            report = {"method": "strict-model-initialization-v1"}
+        parameter_policy = configure_parameters(frozen_model, True, report, tokenizer=tokenizer,
+                                                  train_new_token_rows=options["train_new_token_rows"])
 
     smoke = "not_requested"
     if run_smoke:
         # Synthetic tensors only: do not run HTMD, MGLTools or a research PDB here.
-        model = PocketGPT(model_config).to(device).train()
+        model = (frozen_model if frozen_model is not None else PocketGPT(model_config)).to(device)
+        set_training_mode(model, options["freeze_backbone"])
         length = min(8, model_config.block_size)
         tokens = torch.full((1, length), tokenizer.bos_id, dtype=torch.long, device=device)
         batch = {"pocket": torch.zeros(1, 128, device=device),
@@ -154,6 +181,16 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
         result["loss"].backward()
         if any(parameter.grad is not None and not torch.isfinite(parameter.grad).all() for parameter in model.parameters()):
             raise FloatingPointError("Synthetic model backward is non-finite")
+        if options["freeze_backbone"]:
+            if any(parameter.grad is not None for parameter in model.parameters() if not parameter.requires_grad):
+                raise RuntimeError("Frozen backbone received parameter gradients")
+            if not any(parameter.grad is not None and parameter.grad.abs().sum() > 0
+                       for parameter in model.parameters() if parameter.requires_grad):
+                raise RuntimeError("No gradient reached the conditioning modules through the frozen decoder")
+            for name in parameter_policy["trainable_token_rows"]:
+                gradient = dict(model.named_parameters())[name].grad
+                if gradient is not None and torch.count_nonzero(gradient[parameter_policy["frozen_token_ids"]]).item():
+                    raise RuntimeError("A gradient reached inherited token rows")
         torch.from_numpy(np.arange(4, dtype=np.float32)).numpy()
         smoke = "finite_forward_backward"
 
@@ -167,7 +204,12 @@ def check_recipe(config_file, *, device="cuda", project_root=PROJECT_ROOT,
             "gpu": torch.cuda.get_device_name(torch.device(device)) if device.startswith("cuda") else None,
             "runtime": {"python": platform.python_version(), "torch": str(torch.__version__),
                         "numpy": np.__version__, "rdkit": rdBase.rdkitVersion},
-            "synthetic_smoke": smoke, "resume": bool(resume), "research_encoder_executed": False}
+            "synthetic_smoke": smoke, "resume": bool(resume), "research_encoder_executed": False,
+            "training_options": options,
+            "vocabulary_tokens": len(tokenizer.tokens),
+            "trainable_token_rows": parameter_policy["trainable_token_rows"] if parameter_policy else {},
+            "parameter_counts": ({key: parameter_policy[key] for key in ("frozen_numel", "trainable_numel")}
+                                 if parameter_policy else None)}
 
 
 def main():

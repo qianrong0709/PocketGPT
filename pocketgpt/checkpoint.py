@@ -1,6 +1,11 @@
 import math
 import os
 import random
+import shutil
+import tempfile
+import time
+import warnings
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -37,10 +42,58 @@ def restore_rng(state):
 
 
 def save_checkpoint(path, payload):
+    """Publish only a flushed, readable archive, retaining the previous file.
+
+    Use Python-owned binary streams rather than the path-based C++ file stream.
+    Failed temporary files are retained for diagnosis and never used implicitly.
+    This function must not draw from the training random-number generators.
+    """
     path = Path(path)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    torch.save(payload, temporary)
-    os.replace(temporary, path)
+    for attempt in range(2):
+        temporary, phase = None, "create"
+        try:
+            descriptor, name = tempfile.mkstemp(prefix="." + path.name + ".", suffix=".tmp", dir=path.parent)
+            temporary = Path(name)
+            phase = "serialize/flush/fsync"
+            with os.fdopen(descriptor, "wb") as handle:
+                torch.save(payload, handle)
+                handle.flush()
+                os.fsync(handle.fileno())
+            phase = "verify"
+            with zipfile.ZipFile(temporary) as archive:
+                bad_member = archive.testzip()
+                if bad_member is not None:
+                    raise OSError("Checkpoint CRC failure: " + bad_member)
+            verified = torch.load(temporary, map_location="cpu", weights_only=True)
+            if not isinstance(verified, dict) or verified.get("global_step") != payload.get("global_step"):
+                raise ValueError("Checkpoint reload/step mismatch")
+            del verified
+            phase = "retain_previous"
+            if path.exists():
+                descriptor, name = tempfile.mkstemp(prefix="." + path.name + ".previous.", dir=path.parent)
+                previous_temporary = Path(name)
+                with os.fdopen(descriptor, "wb") as handle, path.open("rb") as source:
+                    shutil.copyfileobj(source, handle)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(previous_temporary, path.with_name(path.name + ".previous"))
+            phase = "publish"
+            os.replace(temporary, path)
+            phase = "directory_fsync"
+            descriptor = os.open(path.parent, os.O_RDONLY)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+            return
+        except (OSError, RuntimeError, ValueError, zipfile.BadZipFile) as error:
+            message = (f"Checkpoint save failed: phase={phase}, attempt={attempt + 1}/2, "
+                       f"target={path}, temporary={temporary}, "
+                       f"error={type(error).__name__}, errno={getattr(error, 'errno', None)}: {error}")
+            if attempt == 1:
+                raise RuntimeError(message) from error
+            warnings.warn(message + "; retrying once; existing checkpoints retained", RuntimeWarning)
+            time.sleep(0.25)
 
 
 def checkpoint_fragment_representation(state):

@@ -2,7 +2,7 @@
 
 [Back to PocketGPT](../README.md)
 
-This guide describes the refactored development package in `pocketgpt/`. Its new trained checkpoints and complete real-structure validation are not yet available. Legacy research scripts have different arguments and data layouts and are preserved only in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src). See [usage](USAGE.md) for commands supported by the refactored package.
+This guide describes the `pocketgpt/` package. See the [generation guide](GENERATION.md) for runnable examples and the [model card](MODEL_CARD.md) for checkpoint compatibility. Legacy research scripts have different arguments and data layouts and remain in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src).
 
 ## What will an inference user provide?
 
@@ -75,7 +75,7 @@ The selected pretraining policy preserves original fragment text for tokenizatio
 - **JSONL** is an internal, row-wise training/cache representation in the refactored loader. Preparing it does not compute a new learned embedding or replace the model's embedding/projector modules.
 - **JSON** can describe a programmatic inference request or configuration. A direct command-line interface can pass the same values without requiring users to write JSON themselves.
 
-Training-cache preparation is a developer/data-maintainer step, not a prerequisite imposed on every inference user. The validated checkpoint release must provide a tested example that accepts ordinary structure files and optional target values.
+Training-cache preparation is a developer/data-maintainer step, not a prerequisite imposed on inference users. See the [generation examples](GENERATION.md) for direct target inputs; raw structure inputs additionally require a provenance-compatible pocket frontend and checkpoint.
 
 ## Outputs and interpretation
 

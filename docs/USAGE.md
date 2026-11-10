@@ -1,8 +1,8 @@
-# Refactored package: installation and usage
+# Training and advanced usage
 
-[Back to PocketGPT](../README.md) · [Input contracts](INPUTS.md) · [Release status](RELEASE.md)
+[Back to PocketGPT](../README.md) · [Installation](INSTALLATION.md) · [Generation examples](GENERATION.md) · [Input contracts](INPUTS.md)
 
-The root `pocketgpt/` package is the refactored implementation and the only implementation on `master`. Older research scripts are preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src); do not mix their vocabularies, checkpoints, or command-line arguments with this package. New trained checkpoints and research datasets are **not included**; the commands below require your own compatible local inputs and, for generation, a trained checkpoint.
+The root `pocketgpt/` package is the implementation on `master`. Older research scripts are preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src); do not mix their vocabularies, checkpoints, or command-line arguments with this package. Training commands below use your own local inputs. For generation with released weights, start with the [quick start](../README.md#installation-and-model-usage).
 
 ## Install and test
 
@@ -57,6 +57,8 @@ python -m pocketgpt prepare \
 python -m pocketgpt train --config configs/finetune.cached.json --device cuda
 ```
 
+For frozen-backbone fine-tuning with validation-based early stopping, use `configs/finetune.frozen.json`. See [fine-tuning details](FINETUNING.md); this starts a new run and does not overwrite an existing full-model fine-tune.
+
 The example recipe initializes from `runs/condition-pretrain-v2-raw/best.pt`, enabling all four conditions. It deliberately opts into **unverified historical embedding provenance** through `allow_unverified_pocket_embeddings`; this enables a clearly labelled legacy-vector experiment, not proof of encoder identity. Do not use that option to make unrelated vectors interchangeable. New verified-encoder workflows should use a provenance-matched configuration instead.
 
 Complex-grouped validation is not protein-held-out evaluation. A protein/sequence mapping and appropriate split are required for unseen-protein claims. The legacy CSV adapter recognizes a specific documented `evalue`/`Unnamed` layout, not arbitrary CSVs; prefer native records when preparing a new dataset. Six-label IFP export and attachment helpers are available through `python -m pocketgpt --help` and preserve explicit IDs and parent-molecule checks.
@@ -109,4 +111,4 @@ The raw-pocket command documents the implemented interface, **not a verified his
 
 Only load weights from a trusted source. The legacy DeeplyTough frontend uses an older PyTorch checkpoint deserializer, which may execute code embedded in an untrusted checkpoint; do not pass arbitrary downloaded weight files to it.
 
-Generated CSVs retain sampled SMILES, including invalid samples, with available validity/property/fragment annotations. Learned constraints are not hard guarantees; IFP recovery and affinity need independent pose/interaction or experimental evaluation. New model weights and validated real-structure demonstrations will be announced separately after training and evaluation.
+Generated CSVs retain sampled SMILES, including invalid samples, with available validity/property/fragment annotations. Learned constraints are not hard guarantees; IFP recovery and affinity need independent pose/interaction or experimental evaluation. The [model card](MODEL_CARD.md) documents the released artifact separately from publication-level results.
