@@ -35,6 +35,8 @@ python -m pocketgpt generate \
 
 Targets use raw values: LogP and QED are dimensionless, TPSA is in Å², and SAS uses the RDKit SA score convention. Omitted properties are masked rather than set to zero. The released fragment branch uses literal `raw-smiles-v1` token input. For meaningful fragment matching, supply a chemically valid fragment SMILES using supported vocabulary tokens.
 
+The ten-sample example above was run on CPU with Python 3.11, PyTorch 2.11.0, NumPy 2.2.6, and RDKit 2026.3.1. All 10 sampled SMILES parsed, all 10 canonical molecules were distinct, and 9 contained the requested benzene substructure. CLI and Python-example outputs matched in that environment. This is a small execution check, not a benchmark estimate or a guarantee of constraint satisfaction.
+
 ## Choose condition combinations
 
 `--conditions` accepts a comma-separated subset of `pocket,properties,fragment,ifp`, `all`, or `none`. When omitted, the CLI selects conditions for the inputs supplied. A selected condition must have an input value.
