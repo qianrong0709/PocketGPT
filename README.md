@@ -66,6 +66,8 @@ python scripts/download_model.py
 
 The downloader retrieves `pocketgpt-v1.pt` from the [v1.0.0 release](https://github.com/qianrong0709/PocketGPT/releases/tag/v1.0.0), verifies its SHA-256 checksum, and saves it under `weights/`. The inference artifact includes model parameters, configuration, and vocabulary. See the [model card](docs/MODEL_CARD.md) for its conditioning interfaces and evaluation scope.
 
+For a Python HTTPS certificate error on macOS, see [certificate setup](docs/INSTALLATION.md#python-https-certificates); keep TLS verification enabled.
+
 ### 3. Generate molecules
 
 This small example requests **QED = 0.7**, **LogP = 2.5**, and a **benzene fragment**. No training data or pocket-encoder installation is needed for this condition subset.

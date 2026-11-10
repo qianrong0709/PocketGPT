@@ -84,3 +84,15 @@ The released model uses historical cached descriptors labelled `legacy-precomput
 - **RDKit/NumPy wheel unavailable**: use the recommended Python version and a supported platform; do not mix packages from different environments.
 - **Model download fails**: download `pocketgpt-v1.pt` from the linked GitHub release manually, place it under `weights/`, and run `python scripts/download_model.py --verify-only`.
 - **Output already exists**: choose a new `--output` path. The generator does not silently replace previous results.
+
+### Python HTTPS certificates
+
+If the downloader reports `CERTIFICATE_VERIFY_FAILED`, check your Python installation's trusted CA configuration. Some macOS Python.org installations have no default CA bundle until their certificate setup is completed. Do not disable HTTPS verification or use an unverified SSL context.
+
+On macOS, if the system-provided `/etc/ssl/cert.pem` is present, this command uses that existing trusted bundle for this download only:
+
+```bash
+SSL_CERT_FILE=/etc/ssl/cert.pem python scripts/download_model.py
+```
+
+This was used for the macOS public-release download check; SHA-256 verification remained enabled. It does not change global Python or system settings. On other systems, repair the installation's normal certificate setup or select a trusted CA bundle appropriate for that system. Python documents the CA environment setting in [its SSL reference](https://docs.python.org/3.11/library/ssl.html#ssl.get_default_verify_paths).
