@@ -357,7 +357,8 @@ def validate_cached_training(config_file, output_dir, *, device="cuda", steps=5)
                 target = output_dir / "generation" / (str(index) + "-" + "-".join(subset) + ".csv")
                 summary = generate(replay_path, request, target, conditions=subset, count=2,
                                    batch_size=2, max_tokens=min(32, builder.block_size),
-                                   seed=int(settings.get("seed", 42)), device=device)
+                                   seed=int(settings.get("seed", 42)), device=device,
+                                   allow_unverified_pocket=bool(recipe.get("allow_unverified_pocket_embeddings", False)))
                 if summary["attempted"] != 2 or summary["conditions"] != list(subset):
                     raise AssertionError("Generation entry did not execute the requested conditions/count")
                 results.append({"conditions": list(subset), "attempted": summary["attempted"],

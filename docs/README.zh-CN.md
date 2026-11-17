@@ -45,12 +45,29 @@ python examples/generate.py --count 10 --output outputs/example.csv
 
 | 条件 | 用户提供的内容 |
 | --- | --- |
-| 口袋 | 与训练特征空间兼容的 128 维口袋向量；原始 PDB 接口还需要匹配的编码器及明确口袋 |
+| 口袋 | 128 维口袋向量，或蛋白 PDB、对应的口袋 PDB 和 DeeplyTough 配置 |
 | 性质 | LogP、QED、TPSA、SAS 中一个或多个目标值 |
 | 片段 | 一个片段 SMILES |
 | IFP | 氢键、疏水、π–π、盐桥、π–阳离子、卤键六类二进制目标 |
 
-当前模型使用历史缓存口袋向量，来源标记为 `legacy-precomputed-unverified`。新计算的 DeeplyTough 向量与训练向量的兼容性尚未验证；使用新口袋前需核对编码器与预处理流程，详见[口袋兼容性](MODEL_CARD.md#pocket-compatibility)。DeeplyTough 参数保持冻结。
+当前模型使用历史缓存的 DeeplyTough 口袋向量。`legacy-precomputed-unverified` 表示当时没有记录完整的编码器身份，并不是提取向量时没有使用权重。“编码器签名”只是来源信息，不是模型的新输入；模型接收的仍然是 128 维向量，再经过学习到的口袋投影层。
+
+新口袋的使用示例：
+
+```bash
+python -m pocketgpt generate \
+  --checkpoint models/pocketgpt-v1.pt \
+  --protein /absolute/path/protein.pdb \
+  --pocket /absolute/path/pocket.pdb \
+  --encoder-config /absolute/path/encoder.local.json \
+  --allow-unverified-pocket \
+  --conditions pocket --count 10 --device cpu \
+  --output outputs/pocket.csv
+```
+
+需先完成[口袋编码环境配置](INSTALLATION.md#optional-pocket-encoding-environment)。流程会提取并缓存向量，再生成分子，不重新训练 DeeplyTough，也不需要准备训练用 JSONL。已有向量时，把 `--protein`、`--pocket`、`--encoder-config` 换成 `--pocket-vector /absolute/path/vector.json` 即可。向量 JSON 可以是 128 个数的数组，或包含 `pocket_embedding` 和已记录的 `pocket_encoder_signature` 的对象。
+
+对于当前历史模型，新编码器与训练向量的数值对应关系尚未核对。`--allow-unverified-pocket` 表示明确选择在这种情况下继续生成，程序会提示并在结果摘要中记录，而不会把新向量改名为旧向量。完成[原始向量对照](GENERATION.md#verify-an-encoder-against-training-vectors)后，可以改用 `--pocket-compatibility` 指定验证记录，无需改动生成模型参数。验证记录由维护者准备，普通用户不需要提供原训练数据。
 
 从结构提取 IFP 需要配体及其结合姿势；提取片段需要参考分子及相应规则。性质和 IFP 目标也可以直接指定。
 

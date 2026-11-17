@@ -80,7 +80,7 @@ def prepare_inference_request(*, pocket_embedding=None, pocket=None, protein=Non
     selection is invented. Only selected modalities invoke providers.
 
     Precomputed encoder_signature is a caller declaration, NOT proof of CSV
-    provenance. Absent signatures remain LEGACY_SIGNATURE. Nothing here binds
+    provenance. Absent signatures remain absent. Nothing here binds
     old embeddings to a newly configured encoder or disables generation's
     checkpoint/profile compatibility checks.
     """
@@ -130,10 +130,12 @@ def prepare_inference_request(*, pocket_embedding=None, pocket=None, protein=Non
     if "pocket" in selected:
         if pocket_embedding is not None:
             vector = validate_embedding(pocket_embedding)
-            signature = LEGACY_SIGNATURE if encoder_signature is None else encoder_signature
-            if not isinstance(signature, str) or not signature:
+            signature = encoder_signature
+            if signature is not None and (not isinstance(signature, str) or not signature):
                 raise ValueError("Precomputed encoder_signature must be a nonempty string")
-            request.update(pocket_embedding=vector.tolist(), pocket_encoder_signature=signature)
+            request.update(pocket_embedding=vector.tolist())
+            if signature is not None:
+                request["pocket_encoder_signature"] = signature
             provenance["sources"]["pocket"] = {
                 "kind": "explicit_precomputed_embedding", "dimension": 128,
                 "embedding_sha256": hashlib.sha256(vector.tobytes()).hexdigest(),

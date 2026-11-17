@@ -10,7 +10,7 @@ An inference request supplies the conditions for generating molecules. Pass them
 
 | Selected condition | User input | Processing inside the workflow |
 | --- | --- | --- |
-| Pocket | A compatible 128-dimensional pocket vector | Project the vector into the model's conditioning space |
+| Pocket | A 128-dimensional pocket vector, or a protein/pocket PDB pair plus an encoder configuration | Encode and cache raw structures if needed, then project the vector into the model's conditioning space |
 | Properties | One or more numerical targets: `logp`, `qed`, `tpsa`, `sas` | Validate the supplied values and apply the checkpoint's input scaling |
 | Fragment | One fragment SMILES string | Tokenize and encode with the checkpoint's fragment representation |
 | IFP | Six named binary interaction targets | Validate the schema and map names into the model's fixed order |
@@ -19,9 +19,11 @@ Only selected conditions participate in encoding and fusion. Missing conditions 
 
 ### Pocket requirements
 
-`models/pocketgpt-v1.pt` uses historical cached pocket vectors with the signature `legacy-precomputed-unverified`. The encoder weights, preprocessing, and feature order must match the training descriptors. Compatibility with newly encoded DeeplyTough vectors has not been verified; see [pocket compatibility](MODEL_CARD.md#pocket-compatibility).
+`models/pocketgpt-v1.pt` uses historical cached pocket vectors with the signature `legacy-precomputed-unverified`. The signature is source metadata, not part of the 128-dimensional model input. Compatibility depends on the encoder weights, preprocessing, feature order, and normalization. It has not yet been established for newly encoded vectors. The historical checkpoint can be used with `--allow-unverified-pocket`, which records this status, or with a verified `--pocket-compatibility` record; see [pocket compatibility](MODEL_CARD.md#pocket-compatibility).
 
-For a checkpoint matched to a configured DeeplyTough encoder, the PDB adapter accepts both a protein PDB and a corresponding pocket PDB. Choose this input pair or a cached vector, not both. The adapter encodes the selected pocket and caches its descriptor. DeeplyTough is frozen; the generator trains the pocket projector and conditional modules.
+The PDB adapter accepts both a protein PDB and its corresponding pocket PDB. Choose this input pair or a cached vector, not both. The adapter encodes the selected pocket and caches its descriptor. Stored vectors can be supplied as a JSON array, a JSON object with `pocket_embedding` and its recorded `pocket_encoder_signature`, or a `.npy` file. A cache's adjacent `provenance.json` is checked when loading `.npy` vectors. Missing signatures remain unknown; the interface does not assign them a historical identity.
+
+DeeplyTough is frozen. Training learns the pocket projector and conditional modules; generation only evaluates the trained model. No training JSONL conversion is required for generation.
 
 ### Property targets
 

@@ -20,9 +20,13 @@ Select conditions individually or in combination. The [quick start](../README.md
 
 ## Pocket compatibility
 
-This model was fine-tuned with cached 128-dimensional pocket vectors labelled `legacy-precomputed-unverified`. The original encoder provenance is incomplete, and compatibility with newly calculated DeeplyTough vectors has not been verified.
+This model was fine-tuned with cached 128-dimensional DeeplyTough vectors. Their checkpoint label, `legacy-precomputed-unverified`, means the exact encoder profile was not recorded. It does not mean that no encoder weights were used to extract the vectors.
 
-A new pocket vector must match the training feature space: encoder weights, preprocessing, feature order, and normalization. Compare new descriptors with the training pipeline before using them with this checkpoint. The raw-PDB adapter checks the encoder signature and rejects mismatches; changing the label does not make vectors compatible.
+An encoder signature identifies the weights, preprocessing code, and runtime. It is metadata, not an additional feature supplied to the model. The model receives the 128 values through its learned pocket projector. A different signature alone does not establish that the values differ, but a shared dimension alone does not establish that they are compatible.
+
+For a new pocket, the interface accepts a protein/pocket PDB pair and a configured DeeplyTough encoder, or a stored vector. DeeplyTough stays frozen. With this historical checkpoint, `--allow-unverified-pocket` permits generation when a match has not been established and records that status. It does not alter the vector or claim compatibility. Known encoder conflicts remain errors. Previously declared historical training vectors retain their historical status; a declaration is not a numerical check.
+
+To establish a match, compare encoded pockets with their original training vectors using the [verification script](GENERATION.md#verify-an-encoder-against-training-vectors). A passing record can be supplied with `--pocket-compatibility`; no change to the generator weights is needed. The release currently includes no such verified mapping.
 
 See [input formats](INPUTS.md#pocket-requirements) for the pocket interface and [installation](INSTALLATION.md) for the separate DeeplyTough environment.
 

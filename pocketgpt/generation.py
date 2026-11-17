@@ -10,11 +10,13 @@ from rdkit.Contrib.SA_Score import sascorer
 from .checkpoint import load_checkpoint, seed_all, checkpoint_fragment_representation
 from .config import CONDITIONS, parse_conditions
 from .data import BatchBuilder
-from .pocket import LEGACY_SIGNATURE, validate_pocket_sources
+from .pocket import validate_pocket_sources
+from .pocket_inference import check_pocket_compatibility, inference_fingerprint
 
 
 def generate(checkpoint, request, output, conditions="all", count=100,
-             temperature=1.0, top_k=20, max_tokens=None, batch_size=32, seed=42, device="cpu", encoder=None):
+             temperature=1.0, top_k=20, max_tokens=None, batch_size=32, seed=42, device="cpu", encoder=None,
+             *, pocket_compatibility=None, allow_unverified_pocket=False):
     validate_pocket_sources(request)
     if count < 1 or temperature <= 0 or batch_size < 1 or top_k < 0:
         raise ValueError("Invalid generation count/temperature/batch_size/top_k")
@@ -33,17 +35,21 @@ def generate(checkpoint, request, output, conditions="all", count=100,
         unknown = set(request.get("properties", {})) - set(state["trained_properties"])
         if unknown:
             raise ValueError("Property targets absent from checkpoint training: " + repr(sorted(unknown)))
-    encoder_config = encoder or state["recipe"].get("pocket_encoder")
+    encoder_config = (encoder or state["recipe"].get("pocket_encoder")) if "pocket" in selected else None
     fragment_representation = checkpoint_fragment_representation(state)
     builder = BatchBuilder(tokenizer, model.config.block_size, selected, encoder_config,
                            fragment_representation=fragment_representation)
+    pocket_metadata, pocket_input = None, None
     if "pocket" in selected:
-        if builder.resolver.row_signature(request) != state.get("pocket_encoder_signature"):
-            raise ValueError("Pocket input does not match checkpoint provenance. Verify against original CSV descriptors before using it")
-        if (state.get("training_contract") and state.get("pocket_encoder_signature") == LEGACY_SIGNATURE
-                and not state["recipe"].get("allow_unverified_pocket_embeddings", False)):
-            raise ValueError("Checkpoint does not explicitly allow unverified legacy pocket embeddings")
+        pocket_metadata = check_pocket_compatibility(
+            checkpoint, state, request, builder.resolver, compatibility=pocket_compatibility,
+            allow_unverified=allow_unverified_pocket)
+        pocket_input = inference_fingerprint(request, builder.resolver, pocket_metadata)
+        if pocket_input["encoder"] != pocket_metadata["input_signature"]:
+            raise RuntimeError("Pocket encoder changed after the compatibility check")
     _, _, single = builder([request], device, language_targets=False)
+    if "pocket" in selected and inference_fingerprint(request, builder.resolver, pocket_metadata) != pocket_input:
+        raise RuntimeError("Pocket inputs or encoder changed during generation preparation")
     actual = {name for i, name in enumerate(CONDITIONS) if bool(single["condition_mask"][0, i])}
     if set(selected) - actual:
         raise ValueError("Selected conditions have no input values: " + repr(sorted(set(selected) - actual)))
@@ -106,9 +112,9 @@ def generate(checkpoint, request, output, conditions="all", count=100,
                "fragment_query_chemical_valid": (query is not None) if "fragment" in selected else None,
                "fragment_match_evaluation": ("unavailable_invalid_fragment_query" if query_unavailable else
                                              "available_for_valid_generated_molecules" if query is not None else "not_requested"),
-               "pocket_input": builder.resolver.input_fingerprint(request) if "pocket" in selected else None,
-               "pocket_provenance_status": ("unverified-legacy" if state.get("pocket_encoder_signature") == LEGACY_SIGNATURE
-                                             else "profile-identified") if "pocket" in selected else "unused",
+               "pocket_input": pocket_input,
+               "pocket_provenance_status": pocket_metadata["status"] if pocket_metadata else "unused",
+               "pocket_compatibility": pocket_metadata,
                "note": "Conditioning is learned guidance. IFP compliance requires independent 3D pose/interaction evaluation."}
     output.with_suffix(".summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     return summary

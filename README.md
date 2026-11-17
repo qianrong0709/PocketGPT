@@ -30,7 +30,7 @@ Fragment SMILES ───────── sequence encoder ──────�
 Interaction fingerprint ─ projector ───────────────┘
 ```
 
-Pocket encoding uses a frozen DeeplyTough frontend. The included model was trained with cached pocket vectors; see [pocket compatibility](docs/MODEL_CARD.md#pocket-compatibility) before using newly encoded structures.
+Pocket encoding uses a frozen DeeplyTough frontend. It produces a 128-dimensional vector that is passed to the model's learned pocket projector. You can supply a stored vector or encode a protein/pocket PDB pair during generation; see [pocket generation](docs/GENERATION.md#generate-from-a-protein-and-pocket).
 
 ## Prospective discovery
 
@@ -75,7 +75,7 @@ python -m pocketgpt generate \
 
 The output CSV contains sampled SMILES, validity, canonical SMILES, calculated properties, and fragment-match annotations. A companion `.summary.json` records sampling counts and settings. Use `--device cuda` for an available NVIDIA GPU. Choose a new output name for each run.
 
-For **pocket + properties + fragment + IFP**, supply a compatible pocket vector and the selected targets; see the [four-condition example](docs/GENERATION.md#four-condition-generation). The [model card](docs/MODEL_CARD.md) describes the checkpoint and pocket-vector requirements.
+For **pocket + properties + fragment + IFP**, supply a pocket vector or a protein/pocket PDB pair and the selected targets; see the [four-condition example](docs/GENERATION.md#four-condition-generation). The included model was trained with cached descriptors. When using new DeeplyTough vectors without a verified encoder match, explicitly select `--allow-unverified-pocket`; this runs generation and records that compatibility has not been established. See [pocket compatibility](docs/MODEL_CARD.md#pocket-compatibility).
 
 ## Training
 

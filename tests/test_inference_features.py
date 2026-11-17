@@ -52,7 +52,7 @@ class InferenceFeatureTests(unittest.TestCase):
         self.assertEqual(request["properties"], self.explicit["properties"])
         self.assertEqual(request["fragment"], self.explicit["fragment"])
         self.assertEqual(request["ifp"], [0] * 6)
-        self.assertEqual(request["pocket_encoder_signature"], LEGACY_SIGNATURE)
+        self.assertNotIn("pocket_encoder_signature", request)
         self.assertEqual(self.explicit, original)
         resolver.assert_not_called()
         resolver.resolve.assert_not_called()
@@ -66,8 +66,6 @@ class InferenceFeatureTests(unittest.TestCase):
             selected = [name for index, name in enumerate(CONDITIONS) if mask & (1 << index)]
             result = prepare_inference_request(**self.explicit, conditions=selected)
             expected = {field for field, name in zip(names, CONDITIONS) if name in selected}
-            if "pocket" in selected:
-                expected.add("pocket_encoder_signature")
             if "fragment" in selected:
                 expected.add("fragment_representation")
             with self.subTest(mask=mask):

@@ -82,7 +82,7 @@ The PDB adapter uses [DeeplyTough](https://github.com/BenevolentAI/DeeplyTough),
 
 Configure a local copy of `configs/encoder.example.json` with the encoder repository, interpreter, weights, MGLTools prefix, and cache directory. Supply both the protein PDB and its corresponding binding-pocket PDB. The adapter caches descriptors by input and encoder identity. Load encoder weights only from a trusted source; its older PyTorch loader can execute code contained in a checkpoint.
 
-`pocketgpt-v1.pt` was trained with cached descriptors labelled `legacy-precomputed-unverified`. Compatibility with newly encoded DeeplyTough vectors has not been verified. Use a checkpoint matched to the encoder before generating from raw PDB files; see [pocket compatibility](MODEL_CARD.md#pocket-compatibility).
+Use the [raw-PDB generation command](GENERATION.md#generate-from-a-protein-and-pocket) after configuring the encoder. The included `pocketgpt-v1.pt` was trained with cached descriptors whose exact encoder match has not been established. For this historical checkpoint, `--allow-unverified-pocket` explicitly permits generation while recording the unverified status. Use a paired-vector compatibility record instead when available; see [pocket compatibility](MODEL_CARD.md#pocket-compatibility). Neither path retrains the encoder or generator.
 
 ## Common issues
 
@@ -91,6 +91,7 @@ Configure a local copy of `configs/encoder.example.json` with the encoder reposi
 - **RDKit/NumPy wheel unavailable**: use Python 3.11 and a platform supported by the selected versions.
 - **Model file missing**: run `python scripts/download_model.py`, or download `pocketgpt-v1.pt` from the release into `models/` and run `python scripts/download_model.py --verify-only`.
 - **Output already exists**: choose a new `--output` path. Existing results are preserved.
+- **Pocket provenance mismatch**: this is a descriptor-source check, not a model-weight loading failure. Preserve the actual encoder signature. For the historical model, use `--allow-unverified-pocket` if you want to proceed before compatibility is established, or provide a verified `--pocket-compatibility` record. Do not replace the signature with the historical label to suppress the error.
 
 ### Python HTTPS certificates
 

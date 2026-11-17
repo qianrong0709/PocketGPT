@@ -2,7 +2,7 @@
 
 [Back to PocketGPT](../README.md) · [Installation](INSTALLATION.md) · [Generation examples](GENERATION.md) · [Input contracts](INPUTS.md)
 
-The root `pocketgpt/` package is the implementation on `main`. Training commands below use your own local inputs. For generation with released weights, start with the [quick start](../README.md#installation-and-model-usage).
+The root `pocketgpt/` package contains the model implementation. Training commands below use your own local inputs. For generation with released weights, start with the [quick start](../README.md#installation-and-model-usage).
 
 ## Install and test
 
@@ -79,7 +79,7 @@ Adjust the partition, memory, and time limit to your cluster. Allocate at least 
 
 To resume, append `--resume /absolute/path/to/the/same-run/last.pt`; for a short test run, append `--max-steps 10`. Both run the input checks. Use only one job per run directory. Exact resume requires matching configuration, vocabulary, data, implementation, and runtime; changed settings require a new warm-start run.
 
-## 4. Generate with a trained compatible checkpoint
+## 4. Generate with a trained checkpoint
 
 For the included model, pass condition values directly:
 
@@ -91,17 +91,20 @@ python -m pocketgpt generate \
   --output runs/generated/property-fragment.csv
 ```
 
-For a custom checkpoint, replace `--checkpoint` with its path and select conditions used during training. Raw PDB input requires a checkpoint matched to the separately installed DeeplyTough encoder and preprocessing pipeline. The included `pocketgpt-v1.pt` has not been verified with newly encoded vectors. With a matched checkpoint and a local copy of `configs/encoder.example.json`, the interface is:
+For a custom checkpoint, replace `--checkpoint` with its path and select conditions used during training. Raw PDB input also needs the separately installed DeeplyTough encoder and a local copy of `configs/encoder.example.json`. For the included historical checkpoint, the interface is:
 
 ```bash
 python -m pocketgpt generate \
-  --checkpoint /absolute/path/to/compatible-pocket-checkpoint.pt \
+  --checkpoint models/pocketgpt-v1.pt \
   --protein /absolute/path/protein.pdb --pocket /absolute/path/pocket.pdb \
   --encoder-config /absolute/path/encoder.local.json \
+  --allow-unverified-pocket \
   --property qed=0.7 --fragment 'c1ccccc1' \
   --ifp '[1,1,0,0,0,0]' --conditions all --count 100 \
   --output runs/generated/four-conditions.csv
 ```
+
+`--allow-unverified-pocket` explicitly permits inference with the historical checkpoint before an encoder match has been established; it records an unverified status rather than changing the vector's identity. Replace it with `--pocket-compatibility /absolute/path/pocket-compatibility.json` after a [paired-vector check](GENERATION.md#verify-an-encoder-against-training-vectors). A checkpoint with an exactly matching encoder signature needs neither option. This inference option does not change training or exact-resume checks.
 
 The IFP array order is hydrogen bond, hydrophobic contact, π-stacking, salt bridge, π-cation interaction, and halogen bond. Supply a protein and its corresponding pocket. Property and IFP targets are entered by the user; observed IFP requires a protein–ligand pose. DeeplyTough remains frozen. See [pocket compatibility](MODEL_CARD.md#pocket-compatibility) and [encoder setup](INSTALLATION.md#optional-pocket-encoding-environment).
 

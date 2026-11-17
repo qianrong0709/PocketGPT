@@ -2,7 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .config import CONDITIONS, PROPERTIES
+from .config import CONDITIONS, PROPERTIES, parse_conditions
 
 
 def prepare_request_files(spec_file, output_file, encoder_file=None, resolve_pocket=False,
@@ -116,6 +116,10 @@ def main():
     gen.add_argument("--pocket", help="Extracted pocket PDB")
     gen.add_argument("--protein", help="Optional full protein PDB providing the original structural context")
     gen.add_argument("--encoder-config", help="Local DeeplyTough repo/python/weights/cache JSON")
+    gen.add_argument("--pocket-vector", help="Descriptor JSON or cached .npy; retain available encoder metadata")
+    gen.add_argument("--pocket-compatibility", help="Local paired-vector comparison record for this checkpoint and encoder")
+    gen.add_argument("--allow-unverified-pocket", action="store_true",
+                     help="Allow unverified encoder compatibility for a historical-vector checkpoint only")
     gen.add_argument("--property", action="append", default=[], help="NAME=VALUE, repeatable")
     gen.add_argument("--fragment")
     gen.add_argument("--ifp", help="JSON list of six binary interaction presences, in documented order")
@@ -167,9 +171,14 @@ def main():
     elif args.command == "generate":
         from .generation import generate
         request = json.loads(Path(args.request).read_text()) if args.request else {}
+        if args.pocket_vector:
+            from .pocket_inference import load_pocket_vector
+            if "pocket_embedding" in request or request.get("pocket") or args.pocket:
+                raise ValueError("Pocket input conflict: supply only one pocket input")
+            request.update(load_pocket_vector(args.pocket_vector))
         if args.pocket:
-            if "pocket_embedding" in request:
-                raise ValueError("Pocket input conflict: --pocket cannot be combined with a request pocket_embedding")
+            if "pocket_embedding" in request or request.get("pocket"):
+                raise ValueError("Pocket input conflict: --pocket cannot be combined with a pocket input in --request")
             request["pocket"] = {"pocket_pdb": str(Path(args.pocket).resolve())}
             if args.protein:
                 request["pocket"]["protein_pdb"] = str(Path(args.protein).resolve())
@@ -194,9 +203,12 @@ def main():
             selected = ",".join(name for name in CONDITIONS if
                                 (name == "pocket" and ("pocket_embedding" in request or request.get("pocket"))) or
                                 (name != "pocket" and name in request)) or "none"
-        encoder = json.loads(Path(args.encoder_config).read_text()) if args.encoder_config else None
+        encoder = (json.loads(Path(args.encoder_config).read_text())
+                   if args.encoder_config and "pocket" in parse_conditions(selected) else None)
         result = generate(args.checkpoint, request, args.output, selected, args.count,
-                          args.temperature, args.top_k, args.max_tokens, args.batch_size, args.seed, args.device, encoder)
+                          args.temperature, args.top_k, args.max_tokens, args.batch_size, args.seed, args.device, encoder,
+                          pocket_compatibility=args.pocket_compatibility,
+                          allow_unverified_pocket=args.allow_unverified_pocket)
     elif args.command == "export-model":
         from .release import export_inference
         result = export_inference(args.checkpoint, args.output, args.model_id)
