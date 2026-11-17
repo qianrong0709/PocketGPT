@@ -2,7 +2,7 @@
 
 [Back to PocketGPT](../README.md)
 
-This guide describes the `pocketgpt/` package. See the [generation guide](GENERATION.md) for runnable examples and the [model card](MODEL_CARD.md) for checkpoint compatibility. Legacy research scripts have different arguments and data layouts and remain in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src).
+This guide describes the `pocketgpt/` package. See the [generation guide](GENERATION.md) for runnable examples and the [model card](MODEL_CARD.md) for checkpoint compatibility.
 
 ## What will an inference user provide?
 

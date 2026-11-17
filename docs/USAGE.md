@@ -2,7 +2,7 @@
 
 [Back to PocketGPT](../README.md) · [Installation](INSTALLATION.md) · [Generation examples](GENERATION.md) · [Input contracts](INPUTS.md)
 
-The root `pocketgpt/` package is the implementation on `master`. Older research scripts are preserved in the [archive branch](https://github.com/qianrong0709/PocketGPT/tree/archive/legacy-before-refactor-20261106/src); do not mix their vocabularies, checkpoints, or command-line arguments with this package. Training commands below use your own local inputs. For generation with released weights, start with the [quick start](../README.md#installation-and-model-usage).
+The root `pocketgpt/` package is the implementation on `main`. Training commands below use your own local inputs. For generation with released weights, start with the [quick start](../README.md#installation-and-model-usage).
 
 ## Install and test
 
