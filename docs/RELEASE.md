@@ -1,23 +1,36 @@
-# Release artifacts
+# Model files
 
 [Overview](../README.md) · [Model card](MODEL_CARD.md) · [Generation](GENERATION.md)
 
 ## v1.0.0
 
-The [GitHub release](https://github.com/qianrong0709/PocketGPT/releases/tag/v1.0.0) pairs the generator source with `pocketgpt-v1.pt`, an inference-only export of the selected frozen-backbone fine-tuning checkpoint. The artifact embeds its vocabulary and architecture. `models/pocketgpt-v1.json` records the exact download URL, byte count, and SHA-256 checksum used by `scripts/download_model.py`.
+The trained model is included in the repository:
 
-The repository includes portable CPU/CUDA setup instructions, CLI and Python generation examples, condition schemas, frozen-backbone/early-stopping training support, and synthetic regression tests.
+| File | Contents |
+| --- | --- |
+| [`models/pocketgpt-v1.pt`](../models/pocketgpt-v1.pt) | Inference weights, model configuration, and vocabulary |
+| [`models/pocketgpt-v1.json`](../models/pocketgpt-v1.json) | Model metadata, file size, checksum, and backup download URL |
+| [`models/SHA256SUMS`](../models/SHA256SUMS) | SHA-256 checksum for the weight file |
 
-Only the inference model is distributed as a release asset; full run directories, optimizer/RNG state, server paths, logs, caches, and research datasets are not part of this artifact. The inference model is not an exact-resume checkpoint.
+The same weights are also available in the [v1.0.0 release](https://github.com/qianrong0709/PocketGPT/releases/tag/v1.0.0). A separate download is unnecessary after cloning the current repository.
 
-## Integrity and compatibility
+## Check the model
+
+```bash
+python scripts/download_model.py --verify-only
+python -m pocketgpt inspect-checkpoint models/pocketgpt-v1.pt
+```
+
+If the model file is missing, restore it from the release:
 
 ```bash
 python scripts/download_model.py
-python scripts/download_model.py --verify-only
-python -m pocketgpt inspect-checkpoint weights/pocketgpt-v1.pt
 ```
 
-Keep the source revision, model file, and embedded vocabulary together. Review the [model card](MODEL_CARD.md), especially the historical pocket-descriptor provenance constraint. Third-party encoder source, weights, and preprocessing tools have their own licensing terms and are not bundled with this generator artifact.
+The script saves the file to `models/pocketgpt-v1.pt` and checks its SHA-256 checksum. An existing file is verified rather than overwritten.
 
-No new code/model license is assigned by the packaging process. Contact the authors for permissions not explicitly granted by an applicable license. Research results and publication-level claims should be cited to the paper rather than inferred from an installation or generation smoke test.
+See the [model card](MODEL_CARD.md) for architecture and pocket compatibility. For training continuation, use a full training checkpoint with optimizer and RNG state.
+
+## Licensing
+
+Contact the authors for code and model usage permissions not covered by an applicable license. Third-party encoder code, weights, and preprocessing tools retain their own licensing terms.

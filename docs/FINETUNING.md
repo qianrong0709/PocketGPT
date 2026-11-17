@@ -23,13 +23,13 @@ python -m pocketgpt train --config configs/finetune.frozen.json \
 
 Exact resume requires the same configuration, data, vocabulary, implementation, and runtime contract; it does not restart an already early-stopped run or reset patience. To change the schedule or training policy, start a separately named warm-start run. Avoid concurrent jobs writing to one output directory.
 
-The example recipe explicitly permits historical descriptors whose encoder identity is not verified. For new data, use a verified common encoder signature instead; a 128-dimensional shape alone is insufficient. Training uses stored descriptors and does not recompute all structures or update DeeplyTough. See [Slurm submission](USAGE.md#3-submit-training-through-slurm) for cluster execution.
+The recipe uses historical cached descriptors with the signature `legacy-precomputed-unverified`. For new data, use one consistent encoder and record its signature; see [pocket compatibility](MODEL_CARD.md#pocket-compatibility). Training reads stored descriptors and leaves DeeplyTough frozen. For cluster execution, see [Slurm submission](USAGE.md#3-submit-training-through-slurm).
 
-To create a separate inference-only artifact from a trusted full checkpoint:
+To export a model for generation:
 
 ```bash
 python -m pocketgpt export-model --checkpoint /absolute/path/best.pt \
   --output weights/my-model.pt --model-id my-pocketgpt-model
 ```
 
-This exports weights and vocabulary without datasets, server paths, optimizer/RNG state, or private training reports. It does not alter the original checkpoint.
+The export includes weights, vocabulary, and model configuration. Keep the original full checkpoint for resuming training; it contains the optimizer and continuation state.

@@ -1,4 +1,4 @@
-"""Run from the repository root after installation and model download."""
+"""Generate molecules with the model included in this repository."""
 import argparse
 import json
 from pathlib import Path
@@ -7,11 +7,15 @@ from pocketgpt.generation import generate
 from pocketgpt.pocket import validate_embedding
 
 
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate molecules using selected conditions locally")
-    parser.add_argument("--checkpoint", default="weights/pocketgpt-v1.pt")
-    parser.add_argument("--request", default="examples/property_fragment.json")
-    parser.add_argument("--pocket-vector", help="Your own compatible vector JSON: a list of 128 finite numbers")
+    parser.add_argument("--checkpoint", default=str(REPOSITORY_ROOT / "models" / "pocketgpt-v1.pt"),
+                        help="Model path (default: models/pocketgpt-v1.pt in this repository)")
+    parser.add_argument("--request", default=str(REPOSITORY_ROOT / "examples" / "property_fragment.json"))
+    parser.add_argument("--pocket-vector", help="Compatible pocket descriptor JSON: a list of 128 finite numbers")
     parser.add_argument("--ifp", help="Optional JSON containing the six named binary interaction targets")
     parser.add_argument("--count", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
@@ -23,7 +27,7 @@ def main():
         if request.get("pocket") or "pocket_embedding" in request:
             raise ValueError("Supply only one pocket input")
         request["pocket_embedding"] = validate_embedding(json.loads(Path(args.pocket_vector).read_text())).tolist()
-        # Historical-vector interface, not proof that arbitrary encoders match.
+        # This model uses descriptors from the historical training pipeline.
         request["pocket_encoder_signature"] = "legacy-precomputed-unverified"
     if args.ifp:
         if "ifp" in request:

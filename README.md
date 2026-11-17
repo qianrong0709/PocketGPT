@@ -8,11 +8,7 @@ Rong Qian, Jilong Duan, Xiaoping Liu, Wenxuan Wang, Tingfei Zhu, Dejun Jiang, Ji
 
 [Paper](https://doi.org/10.59717/j.xinn-drugdisc.2026.100028) · [Project page](https://qianrong0709.github.io/PocketGPT_Page/) · [中文说明](docs/README.zh-CN.md)
 
-PocketGPT brings protein-pocket context and medicinal-chemistry objectives into an autoregressive molecular language model. Pocket information, physicochemical property targets, a molecular fragment, and protein–ligand interaction fingerprints provide complementary conditions for generating molecular SMILES, without explicitly constructing 3D ligand coordinates.
-
-## Overview
-
-Structure-based molecular design must consider both the binding pocket and the functional constraints needed for drug discovery. PocketGPT formulates this task as conditional chemical-language generation: structural and medicinal-chemistry information guide molecular design throughout autoregressive SMILES generation.
+PocketGPT generates molecular SMILES conditioned on protein pockets, molecular properties, fragments, and protein–ligand interaction fingerprints. It combines structural information with medicinal-chemistry targets in an autoregressive molecular language model, without explicitly constructing 3D ligand coordinates.
 
 ## Method
 
@@ -34,7 +30,7 @@ Fragment SMILES ───────── sequence encoder ──────�
 Interaction fingerprint ─ projector ───────────────┘
 ```
 
-The pocket frontend interfaces with a frozen DeeplyTough encoder. See the [input guide](docs/INPUTS.md) for cached pocket vectors and new-pocket encoding.
+Pocket encoding uses a frozen DeeplyTough frontend. The included model was trained with cached pocket vectors; see [pocket compatibility](docs/MODEL_CARD.md#pocket-compatibility) before using newly encoded structures.
 
 ## Prospective discovery
 
@@ -56,40 +52,30 @@ python -m pip install torch==2.11.0 numpy==2.2.6 rdkit==2026.3.1
 python -m pip install -e . --no-deps
 ```
 
-This quick start uses the default PyTorch build. For a CPU-only Linux installation or a specific CUDA build, use the commands in [environment setup](docs/INSTALLATION.md).
+For a CPU-only Linux installation or a specific CUDA build, use the commands in [environment setup](docs/INSTALLATION.md).
 
-### 2. Download the model
+### 2. Generate molecules
+
+The trained model is included at [`models/pocketgpt-v1.pt`](models/pocketgpt-v1.pt). The file contains the weights, model configuration, and vocabulary. After cloning the repository and installing the environment, run:
 
 ```bash
-python scripts/download_model.py
+python examples/generate.py --count 10 --output outputs/example.csv
 ```
 
-The downloader retrieves `pocketgpt-v1.pt` from the [v1.0.0 release](https://github.com/qianrong0709/PocketGPT/releases/tag/v1.0.0), verifies its SHA-256 checksum, and saves it under `weights/`. The inference artifact includes model parameters, configuration, and vocabulary. See the [model card](docs/MODEL_CARD.md) for its conditioning interfaces and evaluation scope.
-
-For a Python HTTPS certificate error on macOS, see [certificate setup](docs/INSTALLATION.md#python-https-certificates); keep TLS verification enabled.
-
-### 3. Generate molecules
-
-This small example requests **QED = 0.7**, **LogP = 2.5**, and a **benzene fragment**. No training data or pocket-encoder installation is needed for this condition subset.
+This example requests **QED = 0.7**, **LogP = 2.5**, and a **benzene fragment**, using CPU. The same request can be passed directly to the command line:
 
 ```bash
 python -m pocketgpt generate \
-  --checkpoint weights/pocketgpt-v1.pt \
+  --checkpoint models/pocketgpt-v1.pt \
   --property qed=0.7 --property logp=2.5 \
   --fragment 'c1ccccc1' --conditions properties,fragment \
   --count 10 --seed 42 --device cpu \
   --output outputs/property-fragment.csv
 ```
 
-Alternatively, run the provided Python example:
-
-```bash
-python examples/generate.py --count 10 --output outputs/example.csv
-```
-
 The output CSV contains sampled SMILES, validity, canonical SMILES, calculated properties, and fragment-match annotations. A companion `.summary.json` records sampling counts and settings. Use `--device cuda` for an available NVIDIA GPU. Choose a new output name for each run.
 
-For **pocket + properties + fragment + IFP**, provide your own compatible pocket descriptor and the selected targets; see the [four-condition example](docs/GENERATION.md#four-condition-generation). Input JSON is optional for ordinary command-line generation; inference users do not prepare training JSONL files.
+For **pocket + properties + fragment + IFP**, supply a compatible pocket vector and the selected targets; see the [four-condition example](docs/GENERATION.md#four-condition-generation). The [model card](docs/MODEL_CARD.md) describes the checkpoint and pocket-vector requirements.
 
 ## Training
 
@@ -110,12 +96,15 @@ PocketGPT/
 ├── scripts/               # Preparation/validation tools and configurable Slurm wrapper
 ├── tests/                 # Regression tests
 ├── examples/              # Inference requests and Python example
-├── models/                # Download manifest and checksum (not datasets)
+├── models/
+│   ├── pocketgpt-v1.pt     # Trained model, configuration, and vocabulary
+│   ├── pocketgpt-v1.json   # Model metadata
+│   └── SHA256SUMS         # Weight checksum
 └── docs/
     ├── INPUTS.md          # Training and inference input contracts
     ├── INSTALLATION.md    # CPU/CUDA environment setup
     ├── GENERATION.md      # CLI/Python examples and condition combinations
-    ├── MODEL_CARD.md      # Released checkpoint specification
+    ├── MODEL_CARD.md      # Model specification
     ├── USAGE.md           # Training and resume commands
     └── README.zh-CN.md    # Chinese overview
 ```
@@ -137,7 +126,7 @@ If you use PocketGPT, please cite:
 }
 ```
 
-Machine-readable citation metadata is provided in [`CITATION.cff`](CITATION.cff). Bibliographic details can also be checked against the [authors' institutional publication record](https://scholars.hkbu.edu.hk/en/publications/structurefunction-conditioned-molecular-generation-with-pocketgpt/).
+Machine-readable citation metadata is provided in [`CITATION.cff`](CITATION.cff).
 
 ## Dependencies
 
@@ -145,4 +134,4 @@ Pocket encoding builds on [DeeplyTough](https://github.com/BenevolentAI/DeeplyTo
 
 ## Contact
 
-For research questions, contact Rong Qian at [24483877@life.hkbu.edu.hk](mailto:24483877@life.hkbu.edu.hk). For usage questions, open a repository issue. Please do not include credentials or confidential research materials in issues.
+For research questions, contact Rong Qian at [24483877@life.hkbu.edu.hk](mailto:24483877@life.hkbu.edu.hk). For usage questions, open a repository issue.

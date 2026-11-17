@@ -5,6 +5,7 @@ cache/
 data/
 runs/
 *.pt
+!models/pocketgpt-v1.pt
 *.pth
 *.npy
 .env*

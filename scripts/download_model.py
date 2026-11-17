@@ -1,4 +1,4 @@
-"""Download one versioned PocketGPT GitHub Release asset and verify its hash."""
+"""Verify the bundled model, or restore a missing copy from GitHub Releases."""
 import argparse
 import hashlib
 import json
@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 
 
 MANIFEST = Path(__file__).resolve().parents[1] / "models" / "pocketgpt-v1.json"
+DEFAULT_MODEL = MANIFEST.with_name("pocketgpt-v1.pt")
 
 
 def checksum(path):
@@ -20,7 +21,7 @@ def checksum(path):
     return digest.hexdigest()
 
 
-def download_model(output="weights/pocketgpt-v1.pt", verify_only=False, manifest_file=MANIFEST):
+def download_model(output=DEFAULT_MODEL, verify_only=False, manifest_file=MANIFEST):
     manifest = json.loads(Path(manifest_file).read_text())
     prefix = "https://github.com/qianrong0709/PocketGPT/releases/download/"
     if (not re.fullmatch(r"[0-9a-f]{64}", manifest["sha256"]) or
@@ -63,7 +64,9 @@ def download_model(output="weights/pocketgpt-v1.pt", verify_only=False, manifest
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", default="weights/pocketgpt-v1.pt")
-    parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument("--output", default=str(DEFAULT_MODEL),
+                        help="Model path (default: models/pocketgpt-v1.pt in this repository)")
+    parser.add_argument("--verify-only", action="store_true",
+                        help="Check the local model without downloading")
     args = parser.parse_args()
     print(json.dumps(download_model(args.output, args.verify_only), indent=2))
