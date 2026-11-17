@@ -1,0 +1,22 @@
+# CPU inference dependencies for the original DeeplyTough encoder.
+# HTMD, SE3CNN and PyTorch are installed separately by setup_linux.sh.
+numpy==1.19.2
+scipy==1.1.0
+scikit-learn==0.20.1
+pandas==1.1.4
+biopython==1.72
+llvmlite==0.28.0
+numba==0.43.1
+Cython==0.29.13
+lie-learn==0.0.1.post1
+transforms3d==0.3.1
+periodictable==1.6.0
+natsort==8.0.0
+requests==2.22.0
+astunparse==1.6.3
+pyparsing==2.4.7
+python-dateutil==2.8.2
+pytz==2021.3
+tqdm==4.36.1
+typing-extensions==4.1.1
+dataclasses==0.8

@@ -2,105 +2,170 @@
 
 [Overview](../README.md) · [Generate molecules](GENERATION.md) · [Training](USAGE.md)
 
-## Generator environment
+There are two installation routes:
 
-Use Python **3.11** for the examples below. The tested versions are PyTorch **2.11.0**, NumPy **2.2.6**, and RDKit **2026.3.1**, with **cu126** for Linux GPU training and CPU execution on macOS. The package requires Python 3.10 or newer.
+- **New pocket PDB → molecules:** install the generator and the original DeeplyTough preprocessing/encoding environments on Linux.
+- **Stored pocket vector or property/fragment/IFP targets → molecules:** install only the generator.
 
-From the repository root, create one isolated environment:
+The trained generator is included in `models/pocketgpt-v1.pt`. No training dataset is needed for inference.
+
+## Linux prerequisites
+
+The full PDB workflow requires Linux x86_64, glibc 2.28 or newer, Conda, Git, GCC/G++, Make, and zlib development headers. Use a directory without spaces. The default installation and examples use CPU; a GPU is optional for the generator.
+
+The real-pocket PDB workflow was run on Ubuntu 22.04 (glibc 2.35) in newly created CPU environments, using the released generator and original DeeplyTough weights. Both protein/pocket pairs and pocket-only inputs completed encoding and generation; four-condition generation also completed.
+
+Check the system in your terminal:
 
 ```bash
+uname -sm
+getconf GNU_LIBC_VERSION
+conda --version
+git --version
+gcc --version
+g++ --version
+make --version
+test -f /usr/include/zlib.h && echo "zlib headers found"
+```
+
+If Conda is missing, install the Linux x86_64 version of [Miniforge](https://github.com/conda-forge/miniforge#install), then reopen the terminal. If compiler tools are missing on Ubuntu/Debian, an administrator can install them with:
+
+```bash
+sudo apt-get update
+sudo apt-get install git build-essential zlib1g-dev
+```
+
+On a shared cluster, ask the administrator for missing system packages and run encoding/generation in an allocated compute job, not on the login node. The setup script does not need administrator permissions and does not modify existing Conda environments.
+
+<a id="optional-pocket-encoding-environment"></a>
+
+## Full Linux installation
+
+Download the repository and choose a new installation directory:
+
+```bash
+git clone --depth 1 https://github.com/qianrong0709/PocketGPT.git
+cd PocketGPT
+export PG_RUNTIME="$PWD/.pocketgpt-runtime"
+```
+
+### Licenses
+
+Before installation, read the [HTMD 1.13.10 license](https://github.com/Acellera/htmd/blob/1.13.10/HTMD_LICENCE.txt) and the [DeeplyTough license at the pinned revision](https://github.com/BenevolentAI/DeeplyTough/blob/7536c5bb7d4e1e7e5d4f6cfacd1a437db03596e9/LICENCE). HTMD's terms include reporting software-usage information.
+
+For MGLTools, review `info/LICENSE.txt` inside the exact **1.5.6 build 1** [Bioconda package](https://conda.anaconda.org/bioconda/linux-64/mgltools-1.5.6-1.tar.bz2). That file contains the terms for the bundled components; a license page for a newer MGLTools release is not a substitute. If you have not already read this file, the following commands download the package, verify its checksum, and display its license. They do not install or execute MGLTools:
+
+```bash
+PG_LICENSE_DIR=$(mktemp -d)
+curl --fail --location --proto '=https' \
+  https://conda.anaconda.org/bioconda/linux-64/mgltools-1.5.6-1.tar.bz2 \
+  --output "$PG_LICENSE_DIR/mgltools-1.5.6-1.tar.bz2"
+printf '%s  %s\n' \
+  fb2e70d2106e2bc644c9b152f131039b516af702d52f680902c3060c6d702a09 \
+  "$PG_LICENSE_DIR/mgltools-1.5.6-1.tar.bz2" | sha256sum --check - \
+  && tar -xOf "$PG_LICENSE_DIR/mgltools-1.5.6-1.tar.bz2" info/LICENSE.txt
+```
+
+If the checksum does not match, stop and check the download. Pass the following flags only after reading and accepting the applicable terms:
+
+```bash
+bash scripts/setup_linux.sh --prefix "$PG_RUNTIME" \
+  --accept-htmd-license --accept-mgltools-license
+export PG_PYTHON="$PG_RUNTIME/envs/generator/bin/python"
+"$PG_PYTHON" scripts/download_model.py --verify-only
+"$PG_PYTHON" -m pocketgpt --help
+```
+
+The script downloads dependencies from their official package indexes and source repositories. It installs separate runtimes because the original encoder and the generator require different Python versions:
+
+| Directory under `PG_RUNTIME` | Purpose |
+| --- | --- |
+| `envs/generator/` | Python 3.10.22, PyTorch 2.11.0 CPU, NumPy 2.2.6, RDKit 2026.3.1 |
+| `envs/encoder/` | Python 3.6.15, PyTorch 1.7.1 CPU, original HTMD/SE3CNN dependencies |
+| `envs/mgltools/` | MGLTools 1.5.6 with its own Python runtime |
+| `sources/` | Pinned upstream source checkouts and DeeplyTough weights |
+| `encoder.local.json` | Interpreter, source, weight, and cache paths for the PDB adapter |
+| `pocket_cache/` | Computed 128-dimensional descriptors and encoder logs |
+| `logs/` | Installation log and installed package lists |
+
+DeeplyTough is pinned to commit `7536c5bb7d4e1e7e5d4f6cfacd1a437db03596e9`. Its `deeplytough_toughm1_test.pth.tar` checkpoint is downloaded from the upstream repository and checked against SHA-256 `a8dfa2e19f24943f5faed170690d2bfc761782eebdf85477771d7fc16adcc558`. Do not substitute the Vertex or ProSPECCTs checkpoint: they produce different descriptors.
+
+Keep the runtime and source directories in place after installation. No manual Conda activation is required when you use `"$PG_PYTHON"`. In a new terminal, return to the repository and set the two variables again:
+
+```bash
+cd /path/to/PocketGPT
+export PG_RUNTIME="$PWD/.pocketgpt-runtime"
+export PG_PYTHON="$PG_RUNTIME/envs/generator/bin/python"
+```
+
+Then supply [your own pocket PDB](GENERATION.md#generate-from-your-pocket-pdb). Installation alone does not run a structure through the encoder.
+
+### Resume an interrupted installation
+
+The installer preserves downloaded files. Read `"$PG_RUNTIME/logs/setup.log"`, resolve the reported problem, and rerun the same installation command with `--resume`:
+
+```bash
+bash scripts/setup_linux.sh --prefix "$PG_RUNTIME" --resume \
+  --accept-htmd-license --accept-mgltools-license
+```
+
+`--resume` is for a directory created by this installer; it does not adopt an unrelated environment. Keep HTTPS certificate verification enabled.
+
+## Generator-only installation
+
+Use this route when you do not need to encode a new PDB. Python 3.10 or newer is required. The following example uses Python 3.11:
+
+```bash
+git clone --depth 1 https://github.com/qianrong0709/PocketGPT.git
+cd PocketGPT
 python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-```
-
-Alternatively, with Conda:
-
-```bash
-conda create -n pocketgpt python=3.11 pip -y
-conda activate pocketgpt
-```
-
-Choose **one** PyTorch installation below.
-
-### macOS
-
-```bash
-python -m pip install torch==2.11.0
-```
-
-Use `--device cpu` for the examples.
-
-### Linux / Windows, CPU only
-
-```bash
 python -m pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cpu
-```
-
-### Linux / Windows, NVIDIA CUDA 12.6 build
-
-```bash
-python -m pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu126
-```
-
-This build requires a compatible NVIDIA driver and GPU. For other CUDA versions, use the [PyTorch installation instructions](https://pytorch.org/get-started/previous-versions/#v2110). PocketGPT does not require `torchvision` or `torchaudio`.
-
-### Install PocketGPT and check the environment
-
-```bash
 python -m pip install numpy==2.2.6 rdkit==2026.3.1
 python -m pip install -e . --no-deps
 python -m pip check
-python -m pocketgpt --help
-python -c "import torch; from rdkit import rdBase; print('PyTorch:', torch.__version__); print('RDKit:', rdBase.rdkitVersion); print('CUDA available:', torch.cuda.is_available())"
-python -m unittest discover -s tests -q
-```
-
-For Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1`. Windows has not been tested. On a cluster, check GPU visibility inside a GPU allocation. Tests check the bundled model's checksum and use synthetic fixtures for training checks.
-
-## Run the model
-
-The repository includes `models/pocketgpt-v1.pt`, with the model configuration and vocabulary stored in the same file. After installation, run:
-
-```bash
+python scripts/download_model.py --verify-only
 python examples/generate.py --count 10 --output outputs/example.csv
 ```
 
-Generation runs locally on CPU or GPU. To check the model file against its recorded SHA-256 checksum:
+For macOS, install PyTorch with `python -m pip install torch==2.11.0` instead of the CPU-index command. For Windows PowerShell, activate the environment with `.venv\Scripts\Activate.ps1`; Windows has not been tested. The legacy PDB encoder setup above is Linux-only.
+
+The example requests QED 0.7, LogP 2.5, and a benzene fragment. It writes sampled SMILES and calculated properties to `outputs/example.csv`, plus a companion summary JSON. If you want to use the README's `"$PG_PYTHON"` commands with this environment, set:
 
 ```bash
-python scripts/download_model.py --verify-only
+export PG_PYTHON="$PWD/.venv/bin/python"
 ```
 
-If the file is missing, `python scripts/download_model.py` restores it from the [v1.0.0 release](https://github.com/qianrong0709/PocketGPT/releases/tag/v1.0.0) to `models/`.
+### NVIDIA GPU for the generator
 
-## Optional pocket-encoding environment
+The Linux setup script installs a CPU generator. To use an NVIDIA GPU, install the CUDA 12.6 build in the generator environment:
 
-This environment is only needed to encode new protein pockets. Property/fragment/IFP generation and generation from compatible cached pocket vectors use the generator environment above.
+```bash
+"$PG_PYTHON" -m pip install --upgrade --force-reinstall torch==2.11.0 --index-url https://download.pytorch.org/whl/cu126
+"$PG_PYTHON" -c "import torch; print(torch.__version__); print(torch.cuda.is_available())"
+```
 
-The PDB adapter uses [DeeplyTough](https://github.com/BenevolentAI/DeeplyTough), which requires older Python/PyTorch/HTMD dependencies in a separate environment. Install its source, weights, and preprocessing tools under their respective licenses. Review HTMD's usage-reporting settings before running it. The PocketGPT download script retrieves only the generator weights.
-
-Configure a local copy of `configs/encoder.example.json` with the encoder repository, interpreter, weights, MGLTools prefix, and cache directory. Supply both the protein PDB and its corresponding binding-pocket PDB. The adapter caches descriptors by input and encoder identity. Load encoder weights only from a trusted source; its older PyTorch loader can execute code contained in a checkpoint.
-
-Use the [raw-PDB generation command](GENERATION.md#generate-from-a-protein-and-pocket) after configuring the encoder. The included `pocketgpt-v1.pt` was trained with cached descriptors whose exact encoder match has not been established. For this historical checkpoint, `--allow-unverified-pocket` explicitly permits generation while recording the unverified status. Use a paired-vector compatibility record instead when available; see [pocket compatibility](MODEL_CARD.md#pocket-compatibility). Neither path retrains the encoder or generator.
+This requires a compatible NVIDIA driver and GPU. On a cluster, run the check inside a GPU allocation. See the [PyTorch installation instructions](https://pytorch.org/get-started/previous-versions/#v2110) for other supported builds. Generate with `--device cuda`; the original DeeplyTough adapter still runs on CPU. `torchvision` and `torchaudio` are not required.
 
 ## Common issues
 
-- **`No module named pocketgpt`**: activate the intended environment and run `python -m pip install -e . --no-deps` from the repository root.
-- **`CUDA available: False`**: use CPU, or check the PyTorch build, NVIDIA driver, and scheduler allocation.
-- **RDKit/NumPy wheel unavailable**: use Python 3.11 and a platform supported by the selected versions.
-- **Model file missing**: run `python scripts/download_model.py`, or download `pocketgpt-v1.pt` from the release into `models/` and run `python scripts/download_model.py --verify-only`.
-- **Output already exists**: choose a new `--output` path. Existing results are preserved.
-- **Pocket provenance mismatch**: this is a descriptor-source check, not a model-weight loading failure. Preserve the actual encoder signature. For the historical model, use `--allow-unverified-pocket` if you want to proceed before compatibility is established, or provide a verified `--pocket-compatibility` record. Do not replace the signature with the historical label to suppress the error.
+- **`conda: command not found`:** finish Conda installation and reopen the terminal before running the setup script.
+- **Prefix already exists:** choose a new installation directory, or use `--resume` for an interrupted run of this installer.
+- **`No module named pocketgpt`:** use `"$PG_PYTHON"` from the installed generator environment. For a manual installation, run `python -m pip install -e . --no-deps` from the repository root.
+- **`DeeplyTough failed; see local log`:** open the named `encoder.log`. It records the preprocessing or encoder error; the last line of the outer traceback is not the underlying cause.
+- **`CUDA available: False`:** use CPU, or check the PyTorch build, NVIDIA driver, and scheduler allocation.
+- **RDKit wheel unavailable:** check the Python version, architecture, and glibc version. The selected Linux wheel requires glibc 2.28 or newer.
+- **Model file missing:** run `"$PG_PYTHON" scripts/download_model.py` to restore it from the [v1.0.0 release](https://github.com/qianrong0709/PocketGPT/releases/tag/v1.0.0), then run with `--verify-only`.
+- **Output already exists:** choose a new `--output` path. Existing results are preserved.
+- **Pocket provenance mismatch:** with the included historical checkpoint, use `--allow-unverified-pocket` to proceed while recording unverified descriptor compatibility, or provide a verified `--pocket-compatibility` record. This error is not a missing-weights error. Do not rename the encoder signature to suppress it.
 
 ### Python HTTPS certificates
 
-If an optional model download reports `CERTIFICATE_VERIFY_FAILED`, configure the trusted CA certificates for your Python installation. Keep HTTPS verification enabled.
-
-On macOS, if the system-provided `/etc/ssl/cert.pem` is present, this command uses that existing trusted bundle for this download only:
+For `CERTIFICATE_VERIFY_FAILED`, configure the trusted CA bundle for the Python installation. Do not disable certificate checks. On macOS, if the system bundle `/etc/ssl/cert.pem` exists, it can be selected for a download:
 
 ```bash
 SSL_CERT_FILE=/etc/ssl/cert.pem python scripts/download_model.py
 ```
 
-On other systems, use the trusted CA bundle for that Python installation. See [Python's SSL reference](https://docs.python.org/3.11/library/ssl.html#ssl.get_default_verify_paths).
+See [Python's SSL reference](https://docs.python.org/3.11/library/ssl.html#ssl.get_default_verify_paths) for default certificate paths.

@@ -30,7 +30,7 @@ Fragment SMILES ───────── sequence encoder ──────�
 Interaction fingerprint ─ projector ───────────────┘
 ```
 
-Pocket encoding uses a frozen DeeplyTough frontend. It produces a 128-dimensional vector that is passed to the model's learned pocket projector. You can supply a stored vector or encode a protein/pocket PDB pair during generation; see [pocket generation](docs/GENERATION.md#generate-from-a-protein-and-pocket).
+Pocket encoding uses a frozen DeeplyTough frontend. It produces a 128-dimensional vector that is passed to the model's learned pocket projector. You can supply a stored vector or encode a pocket PDB during generation. The corresponding full protein PDB can also be supplied to retain the surrounding structural context.
 
 ## Prospective discovery
 
@@ -38,34 +38,67 @@ The paper studies joint structural and functional conditioning and reports a pro
 
 ## Installation and model usage
 
-The generator runs locally on CPU or an NVIDIA GPU. The [installation guide](docs/INSTALLATION.md) covers both environments; the [generation guide](docs/GENERATION.md) explains condition combinations and output fields.
+The trained generator is included at [`models/pocketgpt-v1.pt`](models/pocketgpt-v1.pt). Generating from a new pocket also requires the DeeplyTough encoder and its preprocessing tools. The Linux setup below installs these in separate environments; no training data or retraining is needed.
 
-### 1. Configure the environment
+### 1. Install on Linux
+
+Use **Linux x86_64** with **glibc 2.28 or newer**, Conda, Git, a C/C++ compiler, Make, and zlib development headers. See [prerequisites](docs/INSTALLATION.md#linux-prerequisites) if these are not installed. No GPU is needed for this example.
+
+The real-PDB workflow below was tested on Ubuntu 22.04 with CPU execution, using both a protein/pocket pair and a pocket PDB alone.
 
 ```bash
-git clone https://github.com/qianrong0709/PocketGPT.git
+git clone --depth 1 https://github.com/qianrong0709/PocketGPT.git
 cd PocketGPT
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install torch==2.11.0 numpy==2.2.6 rdkit==2026.3.1
-python -m pip install -e . --no-deps
+export PG_RUNTIME="$PWD/.pocketgpt-runtime"
 ```
 
-For a CPU-only Linux installation or a specific CUDA build, use the commands in [environment setup](docs/INSTALLATION.md).
-
-### 2. Generate molecules
-
-The trained model is included at [`models/pocketgpt-v1.pt`](models/pocketgpt-v1.pt). The file contains the weights, model configuration, and vocabulary. After cloning the repository and installing the environment, run:
+Read the [dependency licenses](docs/INSTALLATION.md#licenses), including the terms bundled with MGLTools 1.5.6. Pass the acceptance flags only after reading and accepting the applicable terms:
 
 ```bash
-python examples/generate.py --count 10 --output outputs/example.csv
+bash scripts/setup_linux.sh --prefix "$PG_RUNTIME" \
+  --accept-htmd-license --accept-mgltools-license
+export PG_PYTHON="$PG_RUNTIME/envs/generator/bin/python"
+"$PG_PYTHON" scripts/download_model.py --verify-only
 ```
 
-This example requests **QED = 0.7**, **LogP = 2.5**, and a **benzene fragment**, using CPU. The same request can be passed directly to the command line:
+The installer writes `encoder.local.json` with the encoder paths and cache location. Keep the installation directory in place. If a download is interrupted, rerun the installation command with `--resume`.
+
+### 2. Generate from your pocket PDB
+
+Replace `/absolute/path/pocket.pdb` with the path to your pocket file:
 
 ```bash
-python -m pocketgpt generate \
+"$PG_PYTHON" -m pocketgpt generate \
+  --checkpoint models/pocketgpt-v1.pt \
+  --pocket /absolute/path/pocket.pdb \
+  --encoder-config "$PG_RUNTIME/encoder.local.json" \
+  --allow-unverified-pocket \
+  --conditions pocket --count 10 --seed 42 --device cpu \
+  --output outputs/pocket.csv
+```
+
+The pipeline calculates the 128-dimensional vector, caches it, and passes it to the generator. You do not need to create a CSV, JSON, or JSONL input file. `outputs/pocket.csv` contains the generated SMILES and calculated properties; `outputs/pocket.summary.json` contains sampling statistics.
+
+The included model was trained with cached descriptors. `--allow-unverified-pocket` permits new descriptors while recording that their numerical compatibility with those training descriptors has not yet been established. It does not mean encoder weights are missing. See [pocket compatibility](docs/MODEL_CARD.md#pocket-compatibility).
+
+### 3. Add protein context or other conditions
+
+The command above uses only the atoms in the pocket file. If you also have the corresponding protein PDB, add `--protein /absolute/path/protein.pdb` to retain surrounding structural context. The two files must use the same coordinate frame. The pocket must contain protein atoms, not dummy points marking a cavity. Use a new `--output` filename for each run.
+
+Add property, fragment, or IFP targets to combine conditions; see [four-condition generation](docs/GENERATION.md#four-condition-generation).
+
+### Generate without a pocket
+
+For property/fragment generation, DeeplyTough is not needed. You can use the generator environment above, or follow the [generator-only installation](docs/INSTALLATION.md#generator-only-installation).
+
+```bash
+"$PG_PYTHON" examples/generate.py --count 10 --output outputs/example.csv
+```
+
+This example requests **QED = 0.7**, **LogP = 2.5**, and a **benzene fragment**, using CPU. Equivalent command:
+
+```bash
+"$PG_PYTHON" -m pocketgpt generate \
   --checkpoint models/pocketgpt-v1.pt \
   --property qed=0.7 --property logp=2.5 \
   --fragment 'c1ccccc1' --conditions properties,fragment \
@@ -73,9 +106,7 @@ python -m pocketgpt generate \
   --output outputs/property-fragment.csv
 ```
 
-The output CSV contains sampled SMILES, validity, canonical SMILES, calculated properties, and fragment-match annotations. A companion `.summary.json` records sampling counts and settings. Use `--device cuda` for an available NVIDIA GPU. Choose a new output name for each run.
-
-For **pocket + properties + fragment + IFP**, supply a pocket vector or a protein/pocket PDB pair and the selected targets; see the [four-condition example](docs/GENERATION.md#four-condition-generation). The included model was trained with cached descriptors. When using new DeeplyTough vectors without a verified encoder match, explicitly select `--allow-unverified-pocket`; this runs generation and records that compatibility has not been established. See [pocket compatibility](docs/MODEL_CARD.md#pocket-compatibility).
+The CSV retains attempted samples, including invalid SMILES, and reports validity, canonical SMILES, calculated properties, and fragment matches. GPU generation requires a [CUDA PyTorch installation](docs/INSTALLATION.md#nvidia-gpu-for-the-generator) and `--device cuda`.
 
 ## Training
 
@@ -93,6 +124,7 @@ PocketGPT/
 ├── requirements-runtime.txt # Tested generator versions
 ├── pocketgpt/             # Generator, data handling, and feature adapters
 ├── configs/               # Portable configuration examples
+├── environments/          # Pinned encoder dependencies
 ├── scripts/               # Preparation/validation tools and configurable Slurm wrapper
 ├── tests/                 # Regression tests
 ├── examples/              # Inference requests and Python example

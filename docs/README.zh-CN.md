@@ -14,25 +14,68 @@ PocketGPT 结合蛋白口袋、分子性质、单片段和蛋白–配体相互�
 - [生成示例与条件组合](GENERATION.md)
 - [模型说明](MODEL_CARD.md)
 
-## 安装与生成
+## 从口袋 PDB 生成分子
 
 训练好的模型位于 [`models/pocketgpt-v1.pt`](../models/pocketgpt-v1.pt)，下载仓库时会一并取得，无需另外下载权重。
 
-在 Python 3.11 的独立环境中安装。macOS 示例：
+### 1. 安装 Linux 环境
+
+完整口袋流程使用 **Linux x86_64、glibc 2.28 或更新版本**，需要 Conda、Git、GCC/G++、Make 和 zlib 开发头文件。缺少这些工具时，先按[环境准备说明](INSTALLATION.md#linux-prerequisites)安装。示例使用 CPU，不要求显卡。
+
+以下真实 PDB 流程已在 Ubuntu 22.04 的 CPU 环境实测，包括“完整蛋白＋口袋”和“仅口袋 PDB”两种输入。
 
 ```bash
-git clone https://github.com/qianrong0709/PocketGPT.git
+git clone --depth 1 https://github.com/qianrong0709/PocketGPT.git
 cd PocketGPT
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install torch==2.11.0 numpy==2.2.6 rdkit==2026.3.1
-python -m pip install -e . --no-deps
-python examples/generate.py --count 10 --output outputs/example.csv
+export PG_RUNTIME="$PWD/.pocketgpt-runtime"
 ```
 
-示例默认读取 `models/pocketgpt-v1.pt`，指定 QED = 0.7、LogP = 2.5 和苯环片段，使用 CPU 生成分子。输出 CSV 包含 SMILES、合法性、计算性质和片段匹配结果；同名 `.summary.json` 记录生成统计。使用 NVIDIA GPU 时添加 `--device cuda`。Linux CPU、CUDA 与 Conda 的安装方式见[环境配置](INSTALLATION.md)。
+先阅读[依赖许可说明](INSTALLATION.md#licenses)，其中提供了 HTMD、DeeplyTough 和 MGLTools 1.5.6 对应版本的许可。MGLTools 的许可在该版本安装包的 `info/LICENSE.txt` 中，不能用新版网页条款替代；文档提供了只下载、校验并查看该文件的命令。阅读并接受适用条款后，再执行：
 
-权重文件内已包含模型配置和词表。上面的性质＋片段示例不需要安装 DeeplyTough。使用四类条件时，需要再提供兼容的口袋向量和六类 IFP 目标，见[四条件示例](GENERATION.md#four-condition-generation)。
+```bash
+bash scripts/setup_linux.sh --prefix "$PG_RUNTIME" \
+  --accept-htmd-license --accept-mgltools-license
+export PG_PYTHON="$PG_RUNTIME/envs/generator/bin/python"
+"$PG_PYTHON" scripts/download_model.py --verify-only
+```
+
+脚本会安装生成模型、DeeplyTough 和 MGLTools 的独立环境，并自动写好 `encoder.local.json`，无需手动填写解释器和权重路径。它们使用不同 Python 版本，因此不能把全部依赖混装进同一个环境。安装中断时，查看 `.pocketgpt-runtime/logs/setup.log`，解决问题后在原命令末尾加 `--resume` 继续。
+
+### 2. 输入自己的口袋 PDB
+
+把下面的 `/absolute/path/pocket.pdb` 换成自己的口袋 PDB 路径：
+
+```bash
+"$PG_PYTHON" -m pocketgpt generate \
+  --checkpoint models/pocketgpt-v1.pt \
+  --pocket /absolute/path/pocket.pdb \
+  --encoder-config "$PG_RUNTIME/encoder.local.json" \
+  --allow-unverified-pocket \
+  --conditions pocket --count 10 --seed 42 --device cpu \
+  --output outputs/pocket.csv
+```
+
+程序会依次提取 **128 维向量 → 缓存向量 → 输入 PocketGPT → 生成分子**。不需要重新训练，也不需要准备训练 CSV 或 JSONL 文件。
+
+- `outputs/pocket.csv`：SMILES、合法性和计算性质，包含所有尝试生成的样本。
+- `outputs/pocket.summary.json`：合法数量、去重数量及运行参数等统计。
+- `.pocketgpt-runtime/pocket_cache/`：计算得到的口袋向量与编码日志。
+
+### 3. 添加蛋白结构或其他条件
+
+上面的命令只使用口袋文件中已有的原子。如果还有对应蛋白 PDB，可以添加 `--protein /absolute/path/protein.pdb`，保留口袋附近的额外结构信息。两个文件需要使用相同坐标系。口袋 PDB 应包含真实蛋白原子，不能只是标记空腔的虚拟点。
+
+新开终端后，回到仓库目录并重新设置 `PG_RUNTIME` 和 `PG_PYTHON` 即可。每次运行使用新的 `--output` 文件名。需要组合性质、片段和 IFP 时，按[四条件示例](GENERATION.md#four-condition-generation)添加目标。
+
+## 不使用口袋的生成示例
+
+只使用性质、片段或 IFP 时，不必安装 DeeplyTough，按[仅安装生成器](INSTALLATION.md#generator-only-installation)配置即可。已经完成上面安装的用户可直接运行：
+
+```bash
+"$PG_PYTHON" examples/generate.py --count 10 --output outputs/example.csv
+```
+
+这个示例指定 QED = 0.7、LogP = 2.5 和苯环片段。权重文件内已经包含模型配置和词表。NVIDIA GPU 的配置见[环境说明](INSTALLATION.md#nvidia-gpu-for-the-generator)；配置好后可使用 `--device cuda`。
 
 ## 训练分为两个阶段
 
@@ -45,7 +88,7 @@ python examples/generate.py --count 10 --output outputs/example.csv
 
 | 条件 | 用户提供的内容 |
 | --- | --- |
-| 口袋 | 128 维口袋向量，或蛋白 PDB、对应的口袋 PDB 和 DeeplyTough 配置 |
+| 口袋 | 128 维口袋向量，或口袋 PDB 和 DeeplyTough 配置；也可提供对应完整蛋白 PDB |
 | 性质 | LogP、QED、TPSA、SAS 中一个或多个目标值 |
 | 片段 | 一个片段 SMILES |
 | IFP | 氢键、疏水、π–π、盐桥、π–阳离子、卤键六类二进制目标 |
@@ -55,17 +98,17 @@ python examples/generate.py --count 10 --output outputs/example.csv
 新口袋的使用示例：
 
 ```bash
-python -m pocketgpt generate \
+"$PG_PYTHON" -m pocketgpt generate \
   --checkpoint models/pocketgpt-v1.pt \
   --protein /absolute/path/protein.pdb \
   --pocket /absolute/path/pocket.pdb \
-  --encoder-config /absolute/path/encoder.local.json \
+  --encoder-config "$PG_RUNTIME/encoder.local.json" \
   --allow-unverified-pocket \
   --conditions pocket --count 10 --device cpu \
   --output outputs/pocket.csv
 ```
 
-需先完成[口袋编码环境配置](INSTALLATION.md#optional-pocket-encoding-environment)。流程会提取并缓存向量，再生成分子，不重新训练 DeeplyTough，也不需要准备训练用 JSONL。已有向量时，把 `--protein`、`--pocket`、`--encoder-config` 换成 `--pocket-vector /absolute/path/vector.json` 即可。向量 JSON 可以是 128 个数的数组，或包含 `pocket_embedding` 和已记录的 `pocket_encoder_signature` 的对象。
+已有向量时，把 `--protein`、`--pocket`、`--encoder-config` 换成 `--pocket-vector /absolute/path/vector.json` 即可。向量 JSON 可以是 128 个数的数组，或包含 `pocket_embedding` 和已记录的 `pocket_encoder_signature` 的对象。
 
 对于当前历史模型，新编码器与训练向量的数值对应关系尚未核对。`--allow-unverified-pocket` 表示明确选择在这种情况下继续生成，程序会提示并在结果摘要中记录，而不会把新向量改名为旧向量。完成[原始向量对照](GENERATION.md#verify-an-encoder-against-training-vectors)后，可以改用 `--pocket-compatibility` 指定验证记录，无需改动生成模型参数。验证记录由维护者准备，普通用户不需要提供原训练数据。
 

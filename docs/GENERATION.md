@@ -2,14 +2,41 @@
 
 [Overview](../README.md) · [Installation](INSTALLATION.md) · [Model card](MODEL_CARD.md) · [Input details](INPUTS.md)
 
-Run commands from the repository root after [installation](INSTALLATION.md). The included checkpoint, `models/pocketgpt-v1.pt`, contains the trained weights, vocabulary, and model configuration. Provide condition values directly on the command line or in a request JSON file.
+Run commands from the repository root after [installation](INSTALLATION.md). The included checkpoint, `models/pocketgpt-v1.pt`, contains the trained weights, vocabulary, and model configuration. Provide condition values directly on the command line; a request JSON file is optional.
+
+For the full Linux installation, set the interpreter and runtime paths in each new terminal:
+
+```bash
+export PG_RUNTIME="$PWD/.pocketgpt-runtime"
+export PG_PYTHON="$PG_RUNTIME/envs/generator/bin/python"
+```
+
+For the generator-only `.venv` installation, use `export PG_PYTHON="$PWD/.venv/bin/python"` instead.
+
+## Generate from your pocket PDB
+
+Replace `/absolute/path/pocket.pdb` with your own pocket PDB path:
+
+```bash
+"$PG_PYTHON" -m pocketgpt generate \
+  --checkpoint models/pocketgpt-v1.pt \
+  --pocket /absolute/path/pocket.pdb \
+  --encoder-config "$PG_RUNTIME/encoder.local.json" \
+  --allow-unverified-pocket \
+  --conditions pocket --count 10 --seed 42 --device cpu \
+  --output outputs/pocket.csv
+```
+
+The generator writes `outputs/pocket.csv` and `outputs/pocket.summary.json`. The encoder stores the computed 128-dimensional vector under `"$PG_RUNTIME/pocket_cache"`; later runs with the same inputs and encoder reuse it. No training CSV or JSONL conversion is needed.
+
+The pocket file must contain the protein atoms defining your intended binding site, not cavity-center points or an unselected whole protein. The command uses that cropped structure as its context. Add the corresponding full protein with `--protein /absolute/path/protein.pdb` to retain nearby atoms outside the crop; both files must use the same coordinate frame. The additional context can change the descriptor.
 
 ## Property and fragment example
 
 Request QED 0.7, LogP 2.5, and one benzene fragment:
 
 ```bash
-python -m pocketgpt generate \
+"$PG_PYTHON" -m pocketgpt generate \
   --checkpoint models/pocketgpt-v1.pt \
   --property qed=0.7 --property logp=2.5 \
   --fragment 'c1ccccc1' --conditions properties,fragment \
@@ -20,7 +47,7 @@ python -m pocketgpt generate \
 Equivalent request-file form:
 
 ```bash
-python -m pocketgpt generate \
+"$PG_PYTHON" -m pocketgpt generate \
   --checkpoint models/pocketgpt-v1.pt \
   --request examples/property_fragment.json \
   --count 10 --seed 42 --device cpu \
@@ -35,30 +62,30 @@ Targets use raw values: LogP and QED are dimensionless, TPSA is in Å², and SAS
 
 ```bash
 # QED only; the other property targets and modalities are omitted.
-python -m pocketgpt generate --checkpoint models/pocketgpt-v1.pt \
+"$PG_PYTHON" -m pocketgpt generate --checkpoint models/pocketgpt-v1.pt \
   --property qed=0.8 --conditions properties --count 10 \
   --output outputs/qed.csv
 
 # Fragment only.
-python -m pocketgpt generate --checkpoint models/pocketgpt-v1.pt \
+"$PG_PYTHON" -m pocketgpt generate --checkpoint models/pocketgpt-v1.pt \
   --fragment 'c1ccccc1' --conditions fragment --count 10 \
   --output outputs/fragment.csv
 
 # No conditioning.
-python -m pocketgpt generate --checkpoint models/pocketgpt-v1.pt \
+"$PG_PYTHON" -m pocketgpt generate --checkpoint models/pocketgpt-v1.pt \
   --conditions none --count 10 --output outputs/unconditional.csv
 ```
 
 ## Generate from a protein and pocket
 
-After setting up the [DeeplyTough environment](INSTALLATION.md#optional-pocket-encoding-environment), provide the full protein PDB, its corresponding pocket PDB, and your local encoder configuration:
+After the [full Linux installation](INSTALLATION.md#full-linux-installation), provide the protein PDB, its corresponding pocket PDB, and the generated encoder configuration:
 
 ```bash
-python -m pocketgpt generate \
+"$PG_PYTHON" -m pocketgpt generate \
   --checkpoint models/pocketgpt-v1.pt \
   --protein /absolute/path/protein.pdb \
   --pocket /absolute/path/pocket.pdb \
-  --encoder-config /absolute/path/encoder.local.json \
+  --encoder-config "$PG_RUNTIME/encoder.local.json" \
   --allow-unverified-pocket \
   --conditions pocket --count 10 --device cpu \
   --output outputs/pocket.csv
@@ -66,9 +93,30 @@ python -m pocketgpt generate \
 
 The pipeline encodes the pocket once, caches the 128-dimensional vector, and passes it to the generator's pocket projector. It does not retrain DeeplyTough or prepare a training dataset. Add properties, a fragment, or IFP targets to use other condition combinations.
 
+If you only have the pocket PDB, omit `--protein`. The encoder then uses the cropped pocket itself as structural context. Supplying the corresponding full protein retains nearby atoms outside the crop and can change the descriptor. The two files must use the same coordinate frame. A pocket file must contain protein atoms; a set of cavity-center points or an unselected whole protein does not define the intended binding pocket.
+
 The included checkpoint uses historical cached descriptors whose exact encoder match has not been established. `--allow-unverified-pocket` explicitly allows inference in that case, emits a warning, and records the status in the output summary. It does not change the vector, relabel its source, or verify compatibility. A matched encoder signature or a [paired-vector verification record](#verify-an-encoder-against-training-vectors) allows generation without this flag. The flag does not override a conflict with a checkpoint that names a concrete encoder.
 
 ## Four-condition generation
+
+For **pocket + properties + fragment + IFP**, add the targets to the real-pocket command:
+
+```bash
+"$PG_PYTHON" -m pocketgpt generate \
+  --checkpoint models/pocketgpt-v1.pt \
+  --pocket /absolute/path/pocket.pdb \
+  --encoder-config "$PG_RUNTIME/encoder.local.json" \
+  --property qed=0.7 --property logp=2.5 \
+  --fragment 'c1ccccc1' \
+  --ifp '{"hydrogen_bond":1,"hydrophobic":1,"pi_stacking":0,"salt_bridge":0,"pi_cation":0,"halogen_bond":0}' \
+  --allow-unverified-pocket --conditions all \
+  --count 10 --seed 42 --device cpu \
+  --output outputs/pocket-four-conditions.csv
+```
+
+The IFP values specify a desired interaction pattern, not measured interactions. Edit the six binary values for your intended pattern. Omit an input and remove its name from `--conditions` to use a smaller combination. The main CLI reads `--ifp` as inline JSON; the `examples/generate.py` wrapper below reads it from a file.
+
+### Use a stored pocket vector
 
 If you already have a pocket descriptor, supply it with `--pocket-vector`. Accepted files are:
 
@@ -81,7 +129,7 @@ The generator does not normalize or reorder the supplied vector. Values are read
 `examples/ifp.json` defines a desired interaction pattern using six names: `hydrogen_bond`, `hydrophobic`, `pi_stacking`, `salt_bridge`, `pi_cation`, `halogen_bond`. Edit the binary values to set your targets.
 
 ```bash
-python examples/generate.py \
+"$PG_PYTHON" examples/generate.py \
   --checkpoint models/pocketgpt-v1.pt \
   --request examples/property_fragment.json \
   --pocket-vector /absolute/path/my-pocket-vector.json \
@@ -100,7 +148,7 @@ For native request JSON, use `pocket_embedding`, `pocket_encoder_signature`, `pr
 This is a one-time check for the dataset maintainer, not a data-conversion step required for each user. Prepare a local JSONL file with at least three distinct matched pockets. Each row contains `pocket` with `protein_pdb` and `pocket_pdb` paths, and `pocket_embedding` copied from the corresponding original training record. Paths are relative to the JSONL file. Check the structure-to-vector correspondence before running:
 
 ```bash
-python scripts/verify_pocket_encoder.py \
+"$PG_PYTHON" scripts/verify_pocket_encoder.py \
   --checkpoint models/pocketgpt-v1.pt \
   --encoder-config /absolute/path/encoder.local.json \
   --references /absolute/path/paired-pockets.jsonl \

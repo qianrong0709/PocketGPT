@@ -34,3 +34,4 @@ logs/
 *.tar.gz
 .DS_Store
 outputs/
+.pocketgpt-runtime/
